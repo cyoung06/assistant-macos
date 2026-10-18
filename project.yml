@@ -40,6 +40,11 @@ targets:
             CFBundleTypeRole: Viewer
             LSHandlerRank: Alternate
             LSItemContentTypes: [public.image]
+          # Mails dragged from Apple Mail onto the Dock icon.
+          - CFBundleTypeName: Mail message
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [com.apple.mail.email, public.email-message]
   ShareExtension:
     type: app-extension
     platform: macOS

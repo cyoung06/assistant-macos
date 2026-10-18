@@ -38,8 +38,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         HotKey.register()
     }
 
-    /** Images or files dropped on the Dock icon open in Capture. */
+    /** Mails (from Apple Mail) and images dropped on the Dock icon open in Capture. */
     func application(_ application: NSApplication, open urls: [URL]) {
+        if let mail = urls.lazy.filter({ $0.pathExtension.lowercased() == "eml" }).compactMap({ (try? Data(contentsOf: $0)).flatMap(MailFile.parse) }).first {
+            CapturePanel.shared.show(mail: mail)
+            return
+        }
         let images = urls.compactMap { url -> CapturedImage? in
             guard let data = try? Data(contentsOf: url) else { return nil }
             return CapturedImage(data: data, name: url.lastPathComponent, mimeType: url.pathExtension.lowercased() == "png" ? "image/png" : "image/jpeg")
@@ -84,7 +88,7 @@ final class CapturePanel {
     static let shared = CapturePanel()
     private var panel: NSPanel?
 
-    func show(text: String = "", images: [CapturedImage] = []) {
+    func show(text: String = "", images: [CapturedImage] = [], mail: MailFile? = nil) {
         panel?.close()
         let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 520, height: 260), styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         p.title = "Capture"
@@ -92,7 +96,7 @@ final class CapturePanel {
         p.level = .floating
         p.hidesOnDeactivate = false
         p.isReleasedWhenClosed = false
-        p.contentView = NSHostingView(rootView: CaptureView(api: AppModel.shared.api, text: text, images: images) { [weak self] in
+        p.contentView = NSHostingView(rootView: CaptureView(api: AppModel.shared.api, text: text, images: images, mail: mail) { [weak self] in
             self?.panel?.close()
             Task { await AppModel.shared.refresh() }
         }.frame(minWidth: 480, minHeight: 200))

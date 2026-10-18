@@ -19,6 +19,8 @@ struct CaptureView: View {
     let api: API
     @State var text: String
     @State var images: [CapturedImage]
+    /** A mail dropped from Apple Mail: its subject becomes the title, with a link back to it. */
+    @State var mail: MailFile? = nil
     var onDone: () -> Void
 
     @State private var mode = 0
@@ -68,14 +70,14 @@ struct CaptureView: View {
             if let error { Text(error).foregroundStyle(.red).font(.callout) }
         }
         .padding(16)
-        .onDrop(of: [.image, .fileURL, .text, .url], isTargeted: nil) { providers in
+        .onDrop(of: [.emailMessage, .image, .fileURL, .text, .url], isTargeted: nil) { providers in
             Task { await take(providers) }
             return true
         }
         .onPasteCommand(of: [.image, .png, .tiff, .text, .url]) { providers in Task { await take(providers) } }
         .task {
             projects = (try? await api.projects()) ?? []
-            if title.isEmpty { await prefill() }
+            if let mail { useMail(mail) } else if title.isEmpty { await prefill() }
             if !images.isEmpty { mode = 1 }
         }
     }
@@ -118,6 +120,18 @@ struct CaptureView: View {
         }
     }
 
+    /** Subject as the title; sender and a link that reopens the mail in Mail go in the description; Analyze reads the body. */
+    private func useMail(_ m: MailFile) {
+        mail = m
+        title = m.subject.isEmpty ? "(no subject)" : m.subject
+        if text.isEmpty { text = m.text }
+    }
+
+    private var mailDescription: String? {
+        guard let m = mail else { return nil }
+        return (["From: \(m.from)"] + (m.link.map { ["[Open in Mail](\($0))"] } ?? [])).joined(separator: "\n")
+    }
+
     private func uploadImages() async throws -> [String] {
         if uploaded.isEmpty && !images.isEmpty {
             var ids: [String] = []
@@ -132,7 +146,8 @@ struct CaptureView: View {
         defer { busy = false }
         do {
             let ids = try await uploadImages()
-            _ = try await api.create(.init(attachmentIds: ids, description: text.count > 120 || text.contains("\n") ? text : nil, due: due, projectId: projectId, title: title.trimmingCharacters(in: .whitespaces)))
+            let description = mailDescription ?? (text.count > 120 || text.contains("\n") ? text : nil)
+            _ = try await api.create(.init(attachmentIds: ids, description: description, due: due, projectId: projectId, title: title.trimmingCharacters(in: .whitespaces)))
             onDone()
         } catch { self.error = error.localizedDescription }
     }
@@ -184,7 +199,8 @@ struct CaptureView: View {
         defer { busy = false }
         do {
             let ids = try await uploadImages()
-            proposals = try await api.analyze(text: text, attachmentIds: ids).map { Pick(proposal: $0, title: $0.title) }
+            let source = mail.map { "Mail from \($0.from), subject \($0.subject):\n\n" } ?? ""
+            proposals = try await api.analyze(text: source + text, attachmentIds: ids).map { Pick(proposal: $0, title: $0.title) }
             analyzed = true
         } catch { self.error = error.localizedDescription }
     }
@@ -197,11 +213,11 @@ struct CaptureView: View {
             for (i, p) in proposals.enumerated() where p.keep {
                 let x = p.proposal
                 if x.kind == "event" {
-                    try await api.createEvent(.init(end: x.end, endDate: x.endDate, notes: x.description, start: x.start, startDate: x.startDate, title: p.title))
+                    try await api.createEvent(.init(end: x.end, endDate: x.endDate, notes: [x.description, mailDescription].compactMap { $0 }.joined(separator: "\n\n"), start: x.start, startDate: x.startDate, title: p.title))
                 } else {
                     // The screenshots go with the first task made from them.
                     _ = try await api.create(.init(
-                        attachmentIds: i == firstTask ? uploaded : nil, description: x.description, due: x.due, labelIds: x.labelIds,
+                        attachmentIds: i == firstTask ? uploaded : nil, description: [x.description, mailDescription].compactMap { $0 }.joined(separator: "\n\n"), due: x.due, labelIds: x.labelIds,
                         priority: x.priority.flatMap { .init(rawValue: $0.rawValue) }, projectId: x.projectId, title: p.title
                     ))
                 }
@@ -232,7 +248,11 @@ struct CaptureView: View {
 
     private func take(_ providers: [NSItemProvider]) async {
         for p in providers {
-            if p.hasItemConformingToTypeIdentifier(UTType.image.identifier), let data = await p.imageData() {
+            if p.hasItemConformingToTypeIdentifier(UTType.emailMessage.identifier), let data = try? await p.loadFile(.emailMessage), let m = MailFile.parse(data) {
+                useMail(m)
+                mode = 0
+                return
+            } else if p.hasItemConformingToTypeIdentifier(UTType.image.identifier), let data = await p.imageData() {
                 images.append(CapturedImage(data: data, name: "screenshot.png", mimeType: "image/png"))
             } else if p.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier), let url = try? await p.loadURL(), let data = try? Data(contentsOf: url),
                       let type = UTType(filenameExtension: url.pathExtension), type.conforms(to: .image) {
@@ -261,6 +281,15 @@ extension NSItemProvider {
                     if type != .png, let data, let rep = NSBitmapImageRep(data: data), let png = rep.representation(using: .png, properties: [:]) { c.resume(returning: png) }
                     else { c.resume(returning: data) }
                 }
+            }
+        }
+    }
+
+    /** A file the drag provides (including a promised one, like a mail dragged out of Mail). */
+    func loadFile(_ type: UTType) async throws -> Data? {
+        try await withCheckedThrowingContinuation { c in
+            _ = loadFileRepresentation(forTypeIdentifier: type.identifier) { url, error in
+                if let error { c.resume(throwing: error) } else { c.resume(returning: url.flatMap { try? Data(contentsOf: $0) }) }
             }
         }
     }
