@@ -45,6 +45,12 @@ targets:
             CFBundleTypeRole: Viewer
             LSHandlerRank: Alternate
             LSItemContentTypes: [com.apple.mail.email, public.email-message]
+        # References to mail (mid:, RFC 2392) and PLMS (plms:) clicked anywhere open through the app.
+        CFBundleURLTypes:
+          - CFBundleURLName: Mail message
+            CFBundleURLSchemes: [mid]
+          - CFBundleURLName: PLMS
+            CFBundleURLSchemes: [plms]
   ShareExtension:
     type: app-extension
     platform: macOS

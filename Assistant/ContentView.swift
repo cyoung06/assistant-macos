@@ -65,7 +65,7 @@ struct ContentView: View {
         }
         .onOpenURL { url in openAppLink(url.absoluteString) }
         .environment(\.openURL, OpenURLAction { url in
-            // Links to tasks open here; everything else in the browser.
+            // Tasks and projects open here, mail in Apple Mail, PLMS and the rest in the browser.
             if openAppLink(url.absoluteString) { return .handled }
             return .systemAction
         })
@@ -73,8 +73,10 @@ struct ContentView: View {
 
     @discardableResult
     private func openAppLink(_ url: String) -> Bool {
-        if let m = url.firstMatch(of: /#task\/([0-9a-f-]{36})/) { selected = String(m.output.1); return true }
-        if let m = url.firstMatch(of: /#tasks\/project\/([0-9a-f-]{36})/) { destination = .project(String(m.output.1)); return true }
+        if let target = externalTarget(url) { NSWorkspace.shared.open(target); return true }
+        // Our pages: "<origin>/task/<id>", or "#task/<id>" in older text.
+        if let m = url.firstMatch(of: /[\/#]task\/([0-9a-f-]{36})/) { selected = String(m.output.1); return true }
+        if let m = url.firstMatch(of: /[\/#]tasks\/project\/([0-9a-f-]{36})/) { destination = .project(String(m.output.1)); return true }
         return false
     }
 }

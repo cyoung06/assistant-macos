@@ -155,10 +155,33 @@ func refMarkdown(_ title: String, _ url: String) -> String {
 
 /** A marker for what a reference points to. */
 func refSymbol(_ url: String) -> String {
-    if url.contains("#task/") { return "circle" }
-    if url.contains("#tasks/project/") { return "square.grid.2x2" }
-    if url.contains("#event/") { return "calendar" }
-    if url.contains("#mail/") { return "envelope" }
-    if url.contains("plms.postech.ac.kr") { return "graduationcap" }
+    if url.hasPrefix("mid:") || url.contains("#mail/") { return "envelope" }
+    if url.hasPrefix("plms:") || url.contains("plms.postech.ac.kr") { return "graduationcap" }
+    if url.contains("/tasks/project/") || url.contains("#tasks/project/") { return "square.grid.2x2" }
+    if url.contains("/task/") || url.contains("#task/") { return "circle" }
+    if url.contains("/event/") || url.contains("#event/") { return "calendar" }
     return "link"
+}
+
+let plmsBase = "https://plms.postech.ac.kr"
+
+/**
+ * Where a link to something outside the app opens: a mail (`mid:<Message-ID>`, RFC 2392) in Apple
+ * Mail, which finds it by its Message-ID; a `plms:` thing on PLMS. Nil for everything else.
+ */
+func externalTarget(_ url: String) -> URL? {
+    if url.hasPrefix("mid:") {
+        let id = String(url.dropFirst(4)).removingPercentEncoding ?? String(url.dropFirst(4))
+        return URL(string: "message://%3C" + (id.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "@.-_"))) ?? id) + "%3E")
+    }
+    if url.hasPrefix("plms:") {
+        let parts = url.dropFirst(5).split(separator: "/").map(String.init)
+        switch (parts.first, parts.count) {
+        case ("course", 2): return URL(string: "\(plmsBase)/course/view.php?id=\(parts[1])")
+        case ("mod", 3): return URL(string: "\(plmsBase)/mod/\(parts[1])/view.php?id=\(parts[2])")
+        case ("post", 3): return URL(string: "\(plmsBase)/mod/ubboard/article.php?id=\(parts[1])&bwid=\(parts[2])")
+        default: return nil
+        }
+    }
+    return nil
 }
