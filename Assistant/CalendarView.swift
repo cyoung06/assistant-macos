@@ -241,6 +241,7 @@ private struct MonthGrid: View {
 
     var body: some View {
         let grid = monthGrid(anchor)
+        let byDay = itemsByDay(items, days: grid)
         let month = String(anchor.prefix(7))
         VStack(spacing: 0) {
             HStack(spacing: 0) {
@@ -250,7 +251,7 @@ private struct MonthGrid: View {
             ForEach(0..<6, id: \.self) { r in
                 HStack(spacing: 0) {
                     ForEach(grid[(r * 7)..<(r * 7 + 7)], id: \.self) { d in
-                        MonthCell(day: d, inMonth: d.hasPrefix(month), items: monthDayItems(items, day: d), select: select, pickDay: pickDay)
+                        MonthCell(day: d, inMonth: d.hasPrefix(month), items: byDay[d] ?? [], select: select, pickDay: pickDay)
                     }
                 }
             }
@@ -310,25 +311,30 @@ private struct EventInfo: View {
 
 private func itemColor(_ item: CalItem) -> Color { item.color.map { Color(hex: $0) } ?? .accentColor }
 
-private func timeText(_ item: CalItem, short: Bool = false) -> String {
-    let f = DateFormatter()
-    f.timeZone = seoul
-    f.dateFormat = "HH:mm"
+@MainActor private func timeText(_ item: CalItem, short: Bool = false) -> String {
+    let f = formatter("HH:mm")
     if let t = item.task { let time = t.due?.time.map { String($0.prefix(5)) } ?? ""; return short ? time : "Due " + time }
     return short ? f.string(from: item.start) : "\(f.string(from: item.start))–\(f.string(from: item.end))"
 }
 
-private func format(_ day: String, _ pattern: String) -> String {
+@MainActor private func format(_ day: String, _ pattern: String) -> String { formatter(pattern).string(from: midnight(day)) }
+
+/** Formatters by pattern, made once (making one is slow and the grids format hundreds of labels). */
+@MainActor private var formatters: [String: DateFormatter] = [:]
+
+@MainActor private func formatter(_ pattern: String) -> DateFormatter {
+    if let f = formatters[pattern] { return f }
     let f = DateFormatter()
     f.locale = Locale(identifier: "en_US")
     f.timeZone = seoul
     f.dateFormat = pattern
-    return f.string(from: midnight(day))
+    formatters[pattern] = f
+    return f
 }
 
-private func monthTitle(_ day: String) -> String { format(day, "MMMM yyyy") }
+@MainActor private func monthTitle(_ day: String) -> String { format(day, "MMMM yyyy") }
 
-private func rangeTitle(_ from: String, _ to: String) -> String {
+@MainActor private func rangeTitle(_ from: String, _ to: String) -> String {
     if from == to { return format(from, "EEE, MMM d") }
     if from.prefix(7) == to.prefix(7) { return "\(format(from, "MMM d")) – \(format(to, "d"))" }
     return "\(format(from, "MMM d")) – \(format(to, "MMM d"))"

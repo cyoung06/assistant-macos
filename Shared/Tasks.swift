@@ -38,21 +38,19 @@ var calendarKST: Calendar {
 }
 
 /** "2026-10-20" for a day in Seoul. */
-func dayString(_ date: Date) -> String {
-    let f = DateFormatter()
-    f.calendar = calendarKST
-    f.timeZone = seoul
-    f.dateFormat = "yyyy-MM-dd"
-    return f.string(from: date)
-}
+func dayString(_ date: Date) -> String { dayFormatter.string(from: date) }
 
-func dayFromString(_ s: String) -> Date? {
+func dayFromString(_ s: String) -> Date? { dayFormatter.date(from: s) }
+
+/** Made once: creating a DateFormatter is slow, and calendar views convert thousands of days. */
+private let dayFormatter: DateFormatter = {
     let f = DateFormatter()
     f.calendar = calendarKST
     f.timeZone = seoul
+    f.locale = Locale(identifier: "en_US_POSIX")
     f.dateFormat = "yyyy-MM-dd"
-    return f.date(from: s)
-}
+    return f
+}()
 
 func addDays(_ day: String, _ n: Int) -> String {
     dayString(calendarKST.date(byAdding: .day, value: n, to: dayFromString(day)!)!)

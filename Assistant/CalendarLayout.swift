@@ -13,8 +13,17 @@ struct CalItem: Identifiable {
     let allDay: Bool
     var event: EventItem?
     var task: TaskItem?
+    /** The first and last day it touches, so finding a day's items compares strings rather than dates. */
+    let firstDay: String
+    let lastDay: String
 
-    func on(_ day: String) -> Bool { start < midnight(addDays(day, 1)) && end > midnight(day) }
+    init(id: String, title: String, color: String?, start: Date, end: Date, allDay: Bool, event: EventItem? = nil, task: TaskItem? = nil) {
+        (self.id, self.title, self.color, self.start, self.end, self.allDay, self.event, self.task) = (id, title, color, start, end, allDay, event, task)
+        firstDay = dayString(start)
+        lastDay = dayString(max(start, end.addingTimeInterval(-1)))
+    }
+
+    func on(_ day: String) -> Bool { firstDay <= day && day <= lastDay }
 }
 
 func midnight(_ day: String) -> Date { dayFromString(day)! }
@@ -88,9 +97,17 @@ func allDayOn(_ items: [CalItem], day: String) -> [CalItem] {
     return list.filter { $0.task == nil } + list.filter { $0.task != nil }
 }
 
-/** Everything on `day` for the month grid: all-day items, then timed ones by start. */
-func monthDayItems(_ items: [CalItem], day: String) -> [CalItem] {
-    allDayOn(items, day: day) + items.filter { !$0.allDay && $0.on(day) }.sorted { $0.start < $1.start }
+/** Each of `days`' items for the month grid, all-day ones first (events, then deadlines), then timed ones by start. */
+func itemsByDay(_ items: [CalItem], days: [String]) -> [String: [CalItem]] {
+    guard let first = days.first, let last = days.last else { return [:] }
+    var out: [String: [CalItem]] = [:]
+    for i in items where i.lastDay >= first && i.firstDay <= last {
+        var d = max(i.firstDay, first)
+        while d <= min(i.lastDay, last) { out[d, default: []].append(i); d = addDays(d, 1) }
+    }
+    return out.mapValues { list in
+        list.filter { $0.allDay && $0.task == nil } + list.filter { $0.allDay && $0.task != nil } + list.filter { !$0.allDay }.sorted { $0.start < $1.start }
+    }
 }
 
 func sunday(of day: String) -> String {
