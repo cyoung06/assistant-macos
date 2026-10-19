@@ -36,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         UNUserNotificationCenter.current().delegate = self
         Reminders.requestPermission()
         HotKey.register()
+        MainActor.assumeIsolated { NoteEditorCheck.runIfAsked() }
     }
 
     /** Mails (from Apple Mail) and images dropped on the Dock icon open in Capture. */

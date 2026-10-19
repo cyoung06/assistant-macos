@@ -31,10 +31,13 @@
 		ADFA4E86F48C3744FE84080C /* AssistantAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 08F2C8743D1A0E889E78BFA2 /* AssistantAPI */; };
 		B3CCF70F25C8F7D688B6B771 /* Handoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17AE8BF93BC9E8D3AD8C73DC /* Handoff.swift */; };
 		B90E5D7EE553D3D99C799B39 /* CalendarLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 907C5C215991FDCCB2EDF98F /* CalendarLayout.swift */; };
+		BD35756996671FFFCE005A10 /* Editor in Resources */ = {isa = PBXBuildFile; fileRef = 01654DFEA6C381FCCFD510C0 /* Editor */; };
+		C60E362C5D9BBDBD272D3A78 /* NoteEditorCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC7A44C26FCDF2538EBD0A9 /* NoteEditorCheck.swift */; };
 		E3E30A52CF0A457957CDF189 /* MailFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BC6777FEBE104BF6927EF4 /* MailFile.swift */; };
 		F20AAB693376F89ABD13E911 /* Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF9813F4655E59F5FA7A519F /* Tasks.swift */; };
 		FBE5249ABA34837DB5971E8F /* InitiativesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92310E2B3434EB97057F997D /* InitiativesView.swift */; };
 		FC45738CCB0DF4B57A414E8A /* AssistantAPI in Frameworks */ = {isa = PBXBuildFile; productRef = D9C297F47B02D57F587E61AB /* AssistantAPI */; };
+		FDC77946CD34C6DC87AAF2E3 /* NoteEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 990A0B3BBDF5B1A42896F9A6 /* NoteEditor.swift */; };
 		FE0B45DAA538C047C730D190 /* Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF9813F4655E59F5FA7A519F /* Tasks.swift */; };
 /* End PBXBuildFile section */
 
@@ -63,6 +66,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		01654DFEA6C381FCCFD510C0 /* Editor */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Editor; path = Assistant/Editor; sourceTree = SOURCE_ROOT; };
 		0A1A4B8C0DF6503075DECD0D /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A20A9483B2B64425BF1A36D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		10E0E631AA38C1EC342C8804 /* AssistantAPI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AssistantAPI; path = Packages/AssistantAPI; sourceTree = SOURCE_ROOT; };
@@ -78,12 +82,14 @@
 		907C5C215991FDCCB2EDF98F /* CalendarLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarLayout.swift; sourceTree = "<group>"; };
 		92310E2B3434EB97057F997D /* InitiativesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitiativesView.swift; sourceTree = "<group>"; };
 		9721ABC546035EFF587925A0 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		990A0B3BBDF5B1A42896F9A6 /* NoteEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditor.swift; sourceTree = "<group>"; };
 		A27A7455F4599C3FDD1DDD5F /* API.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = API.swift; sourceTree = "<group>"; };
 		B0BC6777FEBE104BF6927EF4 /* MailFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailFile.swift; sourceTree = "<group>"; };
 		B27157EBD084D06228785EE4 /* FilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesView.swift; sourceTree = "<group>"; };
 		B735F17A387FA063D84991C8 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		BA6F27CA40561AE84FEDF4E5 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		BF9813F4655E59F5FA7A519F /* Tasks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tasks.swift; sourceTree = "<group>"; };
+		BFC7A44C26FCDF2538EBD0A9 /* NoteEditorCheck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorCheck.swift; sourceTree = "<group>"; };
 		C10CBC59C32F901023B4AB71 /* Assistant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Assistant.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CFDF77BDEB586CABD9FDD6A2 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		DA78FB333562EB6EDBDC451C /* CaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureView.swift; sourceTree = "<group>"; };
@@ -152,11 +158,14 @@
 				F38016EC07C40680B0ADE0A2 /* CalendarView.swift */,
 				BA6F27CA40561AE84FEDF4E5 /* ContentView.swift */,
 				FA07FBE8120B68CF20F71145 /* Drive.swift */,
+				01654DFEA6C381FCCFD510C0 /* Editor */,
 				53058ED33125BBC098EFAC5B /* EventEditor.swift */,
 				B27157EBD084D06228785EE4 /* FilesView.swift */,
 				0A20A9483B2B64425BF1A36D /* Info.plist */,
 				92310E2B3434EB97057F997D /* InitiativesView.swift */,
 				CFDF77BDEB586CABD9FDD6A2 /* MenuBarView.swift */,
+				990A0B3BBDF5B1A42896F9A6 /* NoteEditor.swift */,
+				BFC7A44C26FCDF2538EBD0A9 /* NoteEditorCheck.swift */,
 				854FC7D59E747EF8FF2CEB3B /* ProjectScheduleView.swift */,
 				576ED3440CE0DE6BAB9FA2E6 /* SettingsView.swift */,
 				59D09BDF66A0DB53A2E52B9B /* TaskDetailView.swift */,
@@ -212,6 +221,7 @@
 			buildConfigurationList = 94BC18B1E9B9CE9991C87CC9 /* Build configuration list for PBXNativeTarget "Assistant" */;
 			buildPhases = (
 				4A705AB6FCFF81EB9402B068 /* Sources */,
+				59C743D46B3CAF080DC2C7C3 /* Resources */,
 				01527D4DDC80B4CBB38281F5 /* Frameworks */,
 				2835B9B6D651D8E5E27A1443 /* Embed Foundation Extensions */,
 			);
@@ -270,6 +280,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		59C743D46B3CAF080DC2C7C3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BD35756996671FFFCE005A10 /* Editor in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		0ABA37A1E057DC1B0FBEBD38 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -302,6 +323,8 @@
 				FBE5249ABA34837DB5971E8F /* InitiativesView.swift in Sources */,
 				E3E30A52CF0A457957CDF189 /* MailFile.swift in Sources */,
 				880089C802722D49711D48C8 /* MenuBarView.swift in Sources */,
+				FDC77946CD34C6DC87AAF2E3 /* NoteEditor.swift in Sources */,
+				C60E362C5D9BBDBD272D3A78 /* NoteEditorCheck.swift in Sources */,
 				84AEB21967AF9500B2808650 /* ProjectScheduleView.swift in Sources */,
 				316B36E0DAC8A09C76EFF8B2 /* SettingsView.swift in Sources */,
 				A368B955C8B40A3AAF03A45C /* TaskDetailView.swift in Sources */,

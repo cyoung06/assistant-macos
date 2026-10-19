@@ -11,6 +11,8 @@ struct DriveEntry: Decodable, Hashable, Identifiable {
     let size: Int64
     let modified: String?
     let contentType: String?
+    /** Its version, sent back as If-Match when writing a note (absent from older servers). */
+    let etag: String?
     var id: String { path }
 }
 
@@ -68,6 +70,44 @@ extension API {
         return ((try? JSONSerialization.jsonObject(with: out)) as? [String: Any])?["path"] as? String ?? to
     }
 
+    // ---- notes: reads and writes that know the file's version ----
+
+    /** A file's contents, type and version (ETag); nil if it's still [ifNoneMatch]. */
+    func driveRead(_ path: String, ifNoneMatch: String? = nil) async throws -> (data: Data, etag: String?, type: String?)? {
+        var req = URLRequest(url: driveFileURL(path), cachePolicy: .reloadIgnoringLocalCacheData)
+        if let ifNoneMatch { req.setValue(strongETag(ifNoneMatch), forHTTPHeaderField: "If-None-Match") }
+        let (data, response) = try await URLSession.shared.data(for: req)
+        let http = response as? HTTPURLResponse
+        if http?.statusCode == 304 { return nil }
+        try check(response, data)
+        return (data, http?.value(forHTTPHeaderField: "ETag").map(strongETag), http?.value(forHTTPHeaderField: "Content-Type"))
+    }
+
+    /** Writes a file only if it's still version [ifMatch] (any version without one); its new version, or nil on a conflict. */
+    func driveWrite(_ path: String, _ data: Data, type: String, ifMatch: String?) async throws -> DriveWritten? {
+        var req = URLRequest(url: driveFileURL(path))
+        req.httpMethod = "PUT"
+        req.setValue(type, forHTTPHeaderField: "Content-Type")
+        if let ifMatch { req.setValue(strongETag(ifMatch), forHTTPHeaderField: "If-Match") }
+        let (out, response) = try await URLSession.shared.upload(for: req, from: data)
+        if (response as? HTTPURLResponse)?.statusCode == 412 { return nil }
+        try check(response, out)
+        if let etag = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "ETag") { return DriveWritten(etag: strongETag(etag)) }
+        // Older servers don't say: the listing does.
+        let listed = try? await driveFolder(driveParent(path)).first { $0.path == path }
+        return DriveWritten(etag: listed?.etag.map(strongETag))
+    }
+
+    /** [name] in [folder], or "stem (2).ext" and so on if that's taken. */
+    func driveFreeName(_ name: String, in folder: String) async -> String {
+        let taken = Set(((try? await driveFolder(folder)) ?? []).map(\.name))
+        let stem = (name as NSString).deletingPathExtension, ext = (name as NSString).pathExtension
+        var free = name
+        var n = 2
+        while taken.contains(free) { free = ext.isEmpty ? "\(stem) (\(n))" : "\(stem) (\(n)).\(ext)"; n += 1 }
+        return free
+    }
+
     @discardableResult
     private func drive(_ method: String, _ endpoint: String, _ query: [String: String] = [:], body: Data? = nil, type: String? = nil) async throws -> Data {
         var req = URLRequest(url: driveURL(endpoint, query))
@@ -85,6 +125,12 @@ extension API {
         throw APIError(message: detail ?? (code == 409 ? "Something is already called that" : "HTTP \(code)"))
     }
 }
+
+/** A write that went through: the file's new version, if known. */
+struct DriveWritten { let etag: String? }
+
+/** An ETag as the file's own: a compressing proxy on the way marks them weak ("W/"). */
+func strongETag(_ etag: String) -> String { etag.hasPrefix("W/") ? String(etag.dropFirst(2)) : etag }
 
 // ---- What a path is ---------------------------------------------------------------------
 

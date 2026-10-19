@@ -48,6 +48,19 @@ struct FilesView: View {
             await store.load(top)
         }
         .onChange(of: selection) { _, s in lastSelection[top] = s }
+        // A link followed in a note: the file it points to, selected (its folder listed first).
+        .onReceive(NotificationCenter.default.publisher(for: .driveReveal)) { note in
+            guard let path = note.object as? String, path.hasPrefix(top) else { return }
+            Task {
+                var folder = top
+                for part in path.dropFirst(top.count).split(separator: "/").dropLast() {
+                    folder += part + "/"
+                    store.ensure(folder)
+                }
+                await store.load(driveParent(path))
+                selection = path
+            }
+        }
         .toolbar {
             ToolbarItemGroup {
                 Button { upload(into: here) } label: { Label("Upload", systemImage: "square.and.arrow.up") }.disabled(driveReadOnly(here))
@@ -154,7 +167,9 @@ struct FilesView: View {
     // ---- what's selected ----
 
     @ViewBuilder private var preview: some View {
-        if let e = selected, !e.folder {
+        if let e = selected, !e.folder, driveKind(e.name, folder: false) == .markdown {
+            NoteView(entry: e)
+        } else if let e = selected, !e.folder {
             FilePreview(entry: e)
         } else {
             folderGrid(selected?.path ?? top, name: selected?.name ?? rootName)

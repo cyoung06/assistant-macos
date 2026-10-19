@@ -21,7 +21,14 @@ targets:
   Assistant:
     type: application
     platform: macOS
-    sources: [Assistant, Shared]
+    sources:
+      - path: Assistant
+        excludes: [Editor]
+      - Shared
+      # The web app's note editor (./sync-editor.sh), kept as a folder: its files link to each other relatively.
+      - path: Assistant/Editor
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: AssistantAPI
       - target: ShareExtension
