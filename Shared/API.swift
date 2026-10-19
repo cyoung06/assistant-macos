@@ -7,6 +7,8 @@ typealias TaskItem = Components.Schemas.TaskResponse
 typealias Project = Components.Schemas.ProjectResponse
 typealias TaskLabel = Components.Schemas.LabelResponse
 typealias Initiative = Components.Schemas.InitiativeResponse
+typealias ProjectSchedule = Components.Schemas.ProjectSchedule
+typealias RecurringSummary = Components.Schemas.RecurringSummary
 typealias Due = Components.Schemas.DueDto
 typealias EventItem = Components.Schemas.EventOccurrence
 typealias RefItem = Components.Schemas.Ref
@@ -49,6 +51,9 @@ final class API: @unchecked Sendable {
     func projects() async throws -> [Project] { try await client.projects().ok.body.json }
     func labels() async throws -> [TaskLabel] { try await client.labels().ok.body.json }
     func initiatives() async throws -> [Initiative] { try await client.initiatives().ok.body.json }
+    func projectSchedule(_ id: String) async throws -> ProjectSchedule {
+        try await client.projectSchedule(.init(path: .init(id: id), query: .init(days: 28))).ok.body.json
+    }
 
     func create(_ req: Components.Schemas.CreateTaskRequest) async throws -> TaskItem {
         switch try await client.create(.init(body: .json(req))) {

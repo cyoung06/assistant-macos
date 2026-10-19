@@ -85,6 +85,7 @@ struct TaskListView: View {
     @Binding var selected: String?
     @State private var showClosed = false
     @State private var query = ""
+    @State private var schedule: ProjectSchedule?
 
     var body: some View {
         let today = todayString
@@ -93,6 +94,7 @@ struct TaskListView: View {
         let closed = (destination == .all || isProject) ? tasks.filter(\.closed).sorted { ($0.closedAt ?? .distantPast) > ($1.closedAt ?? .distantPast) } : []
         List(selection: $selected) {
             if let e = model.error { Text(e).foregroundStyle(.red) }
+            if case let .project(id) = destination { ProjectScheduleSection(schedule: schedule, projectName: model.project(id)?.name ?? "") }
             ForEach(groups) { g in
                 Section {
                     ForEach(g.tasks, id: \.id) { t in TaskRowView(task: t).tag(t.id) }
@@ -120,6 +122,10 @@ struct TaskListView: View {
         }
         .searchable(text: $query, prompt: "Search or #number")
         .navigationTitle(title)
+        .task(id: String(describing: destination)) {
+            schedule = nil
+            if case let .project(id) = destination { schedule = try? await model.api.projectSchedule(id) }
+        }
     }
 
     private var isProject: Bool { if case .project = destination { return true }; return false }
