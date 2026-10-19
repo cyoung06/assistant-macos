@@ -22,6 +22,7 @@
 		A368B955C8B40A3AAF03A45C /* TaskDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59D09BDF66A0DB53A2E52B9B /* TaskDetailView.swift */; };
 		AA8A3E7C908EEA6767099A43 /* MailFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BC6777FEBE104BF6927EF4 /* MailFile.swift */; };
 		ADFA4E86F48C3744FE84080C /* AssistantAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 08F2C8743D1A0E889E78BFA2 /* AssistantAPI */; };
+		B90E5D7EE553D3D99C799B39 /* CalendarLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 907C5C215991FDCCB2EDF98F /* CalendarLayout.swift */; };
 		E3E30A52CF0A457957CDF189 /* MailFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BC6777FEBE104BF6927EF4 /* MailFile.swift */; };
 		F20AAB693376F89ABD13E911 /* Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF9813F4655E59F5FA7A519F /* Tasks.swift */; };
 		FC45738CCB0DF4B57A414E8A /* AssistantAPI in Frameworks */ = {isa = PBXBuildFile; productRef = D9C297F47B02D57F587E61AB /* AssistantAPI */; };
@@ -61,6 +62,7 @@
 		59D09BDF66A0DB53A2E52B9B /* TaskDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailView.swift; sourceTree = "<group>"; };
 		69AA7DFFD6F76C5C5DA46DE8 /* AssistantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantApp.swift; sourceTree = "<group>"; };
 		7B4E3DA4EB4D31191F858137 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		907C5C215991FDCCB2EDF98F /* CalendarLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarLayout.swift; sourceTree = "<group>"; };
 		9721ABC546035EFF587925A0 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		A27A7455F4599C3FDD1DDD5F /* API.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = API.swift; sourceTree = "<group>"; };
 		B0BC6777FEBE104BF6927EF4 /* MailFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailFile.swift; sourceTree = "<group>"; };
@@ -128,6 +130,7 @@
 			children = (
 				B735F17A387FA063D84991C8 /* AppModel.swift */,
 				69AA7DFFD6F76C5C5DA46DE8 /* AssistantApp.swift */,
+				907C5C215991FDCCB2EDF98F /* CalendarLayout.swift */,
 				F38016EC07C40680B0ADE0A2 /* CalendarView.swift */,
 				BA6F27CA40561AE84FEDF4E5 /* ContentView.swift */,
 				0A20A9483B2B64425BF1A36D /* Info.plist */,
@@ -262,6 +265,7 @@
 				906F8613B45C1F646B9A61D3 /* API.swift in Sources */,
 				5FF34E49D2B742C89440B8A4 /* AppModel.swift in Sources */,
 				7E69B804A07A38F89756D3C3 /* AssistantApp.swift in Sources */,
+				B90E5D7EE553D3D99C799B39 /* CalendarLayout.swift in Sources */,
 				1468A047BF2B996204913DAE /* CalendarView.swift in Sources */,
 				7B12431F07F5267B8F7959AF /* CaptureView.swift in Sources */,
 				1F106ABC543B69FC05078163 /* ContentView.swift in Sources */,
