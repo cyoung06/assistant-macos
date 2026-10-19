@@ -101,9 +101,20 @@ struct TaskListView: View {
                 }
             }
             if !closed.isEmpty {
-                Section(isExpanded: $showClosed) {
-                    ForEach(closed, id: \.id) { t in TaskRowView(task: t).tag(t.id) }
-                } header: { Text("Closed \(closed.count)") }
+                // A plain list draws no disclosure chevron for Section(isExpanded:), so the header toggles it.
+                Section {
+                    if showClosed { ForEach(closed, id: \.id) { t in TaskRowView(task: t).tag(t.id) } }
+                } header: {
+                    Button { withAnimation { showClosed.toggle() } } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.right").rotationEffect(.degrees(showClosed ? 90 : 0)).font(.caption.weight(.semibold))
+                            Text("Closed")
+                            Text("\(closed.count)").foregroundStyle(.secondary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             if groups.isEmpty && closed.isEmpty { Text("Nothing here.").foregroundStyle(.secondary) }
         }
