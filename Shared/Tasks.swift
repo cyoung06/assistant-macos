@@ -160,6 +160,9 @@ func refSymbol(_ url: String) -> String {
     if url.contains("/tasks/project/") || url.contains("#tasks/project/") { return "square.grid.2x2" }
     if url.contains("/task/") || url.contains("#task/") { return "circle" }
     if url.contains("/event/") || url.contains("#event/") { return "calendar" }
+    if let m = url.firstMatch(of: /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+(?:\/(issues|pull)\/\d+)?/) {
+        switch m.output.1 { case "pull": return "arrow.triangle.pull"; case "issues": return "smallcircle.filled.circle"; default: return "book.closed" }
+    }
     return "link"
 }
 
