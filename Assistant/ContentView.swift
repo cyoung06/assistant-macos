@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum Destination: Hashable {
-    case triage, active, backlog, all, project(String), calendar, initiatives, initiative(String)
+    case triage, active, backlog, all, project(String), calendar, initiatives, initiative(String), files
 }
 
 /** Sidebar (task views, projects, calendar) and the selected list, with the task in an inspector. */
@@ -10,6 +10,8 @@ struct ContentView: View {
     @State private var destination: Destination? = .active
     @State private var selected: String?
     @State private var creating = false
+    /** A project's page shows its files instead of its tasks. */
+    @State private var projectFiles = false
 
     var body: some View {
         NavigationSplitView {
@@ -35,6 +37,7 @@ struct ContentView: View {
                 }
                 Section {
                     Label("Calendar", systemImage: "calendar").tag(Destination.calendar)
+                    Label("Files", systemImage: "folder").tag(Destination.files)
                 }
             }
             .navigationSplitViewColumnWidth(min: 190, ideal: 220)
@@ -45,10 +48,22 @@ struct ContentView: View {
                 case .triage: TriageView(selectedTask: $selected)
                 case .initiatives: InitiativesView { destination = .initiative($0) }
                 case let .initiative(id): InitiativeView(id: id, back: { destination = .initiatives }, openProject: { destination = .project($0) })
+                case .files: FilesView(root: nil, rootName: "Files")
+                case let .project(id) where projectFiles: ProjectFilesView(projectId: id, name: model.project(id)?.name ?? "Project")
                 default: TaskListView(destination: destination ?? .active, selected: $selected)
                 }
             }
             .toolbar {
+                if case .project = destination {
+                    ToolbarItem(placement: .principal) {
+                        Picker("Show", selection: $projectFiles) {
+                            Text("Tasks").tag(false)
+                            Text("Files").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        .fixedSize()
+                    }
+                }
                 ToolbarItem { Button { creating = true } label: { Label("New task", systemImage: "square.and.pencil") }.keyboardShortcut("n") }
                 ToolbarItem { Button { CapturePanel.shared.show() } label: { Label("Capture", systemImage: "camera.viewfinder") } }
                 ToolbarItem { Button { Task { await model.refresh() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }.keyboardShortcut("r") }
@@ -151,6 +166,7 @@ struct TaskListView: View {
         case .calendar: "Calendar"
         case .triage: "Triage"
         case .initiatives, .initiative: "Initiatives"
+        case .files: "Files"
         }
     }
 
@@ -160,7 +176,7 @@ struct TaskListView: View {
             let inView: Bool = switch destination {
             case .active: t.status == .todo || t.status == .in_progress
             case .backlog: t.status == .backlog
-            case .all, .calendar, .triage, .initiatives, .initiative: true
+            case .all, .calendar, .triage, .initiatives, .initiative, .files: true
             case let .project(id): t.projectId == id
             }
             return inView && (q.isEmpty || plainText(t.title).lowercased().contains(q) || "#\(t.number)" == q)
