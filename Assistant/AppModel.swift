@@ -113,6 +113,31 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func initiative(_ id: String?) -> Initiative? { data.initiatives?.first { $0.id == id } }
+
+    /** Initiatives active first, then planned, then completed; by name within each. */
+    var sortedInitiatives: [Initiative] {
+        let order: [Initiative.statusPayload] = [.active, .planned, .completed]
+        return (data.initiatives ?? []).sorted { a, b in
+            let x = order.firstIndex(of: a.status) ?? 0, y = order.firstIndex(of: b.status) ?? 0
+            return x != y ? x < y : a.name.localizedStandardCompare(b.name) == .orderedAscending
+        }
+    }
+
+    /** Applies a change to an initiative on screen at once (name, status, projects), then sends it as a merge patch. */
+    func changeInitiative(_ id: String, _ patch: [String: Any]) async {
+        if var list = data.initiatives, let i = list.firstIndex(where: { $0.id == id }) {
+            if let name = patch["name"] as? String { list[i].name = name }
+            if let s = patch["status"] as? String, let status = Initiative.statusPayload(rawValue: s) { list[i].status = status }
+            if let ids = patch["projectIds"] as? [String] { list[i].projectIds = ids }
+            if patch.keys.contains("targetDate") { list[i].targetDate = patch["targetDate"] as? String }
+            if let d = patch["description"] as? String { list[i].description = d }
+            data.initiatives = list
+        }
+        do { try await api.patchInitiative(id, patch) } catch { self.error = error.localizedDescription }
+        await refresh()
+    }
+
     /** Open projects for the sidebar: those in an active initiative, or in none (a finished semester's courses drop out). */
     var sidebarProjects: [Project] {
         let active = Set((data.initiatives ?? []).filter { $0.status == .active }.map(\.id))

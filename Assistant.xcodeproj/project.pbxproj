@@ -28,6 +28,7 @@
 		B90E5D7EE553D3D99C799B39 /* CalendarLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 907C5C215991FDCCB2EDF98F /* CalendarLayout.swift */; };
 		E3E30A52CF0A457957CDF189 /* MailFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BC6777FEBE104BF6927EF4 /* MailFile.swift */; };
 		F20AAB693376F89ABD13E911 /* Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF9813F4655E59F5FA7A519F /* Tasks.swift */; };
+		FBE5249ABA34837DB5971E8F /* InitiativesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92310E2B3434EB97057F997D /* InitiativesView.swift */; };
 		FC45738CCB0DF4B57A414E8A /* AssistantAPI in Frameworks */ = {isa = PBXBuildFile; productRef = D9C297F47B02D57F587E61AB /* AssistantAPI */; };
 		FE0B45DAA538C047C730D190 /* Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF9813F4655E59F5FA7A519F /* Tasks.swift */; };
 /* End PBXBuildFile section */
@@ -68,6 +69,7 @@
 		7B4E3DA4EB4D31191F858137 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		854FC7D59E747EF8FF2CEB3B /* ProjectScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectScheduleView.swift; sourceTree = "<group>"; };
 		907C5C215991FDCCB2EDF98F /* CalendarLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarLayout.swift; sourceTree = "<group>"; };
+		92310E2B3434EB97057F997D /* InitiativesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitiativesView.swift; sourceTree = "<group>"; };
 		9721ABC546035EFF587925A0 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		A27A7455F4599C3FDD1DDD5F /* API.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = API.swift; sourceTree = "<group>"; };
 		B0BC6777FEBE104BF6927EF4 /* MailFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailFile.swift; sourceTree = "<group>"; };
@@ -141,6 +143,7 @@
 				BA6F27CA40561AE84FEDF4E5 /* ContentView.swift */,
 				53058ED33125BBC098EFAC5B /* EventEditor.swift */,
 				0A20A9483B2B64425BF1A36D /* Info.plist */,
+				92310E2B3434EB97057F997D /* InitiativesView.swift */,
 				CFDF77BDEB586CABD9FDD6A2 /* MenuBarView.swift */,
 				854FC7D59E747EF8FF2CEB3B /* ProjectScheduleView.swift */,
 				576ED3440CE0DE6BAB9FA2E6 /* SettingsView.swift */,
@@ -279,6 +282,7 @@
 				7B12431F07F5267B8F7959AF /* CaptureView.swift in Sources */,
 				1F106ABC543B69FC05078163 /* ContentView.swift in Sources */,
 				33BE591F4DBF41FEB719E955 /* EventEditor.swift in Sources */,
+				FBE5249ABA34837DB5971E8F /* InitiativesView.swift in Sources */,
 				E3E30A52CF0A457957CDF189 /* MailFile.swift in Sources */,
 				880089C802722D49711D48C8 /* MenuBarView.swift in Sources */,
 				84AEB21967AF9500B2808650 /* ProjectScheduleView.swift in Sources */,

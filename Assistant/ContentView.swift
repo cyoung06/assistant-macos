@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum Destination: Hashable {
-    case triage, active, backlog, all, project(String), calendar
+    case triage, active, backlog, all, project(String), calendar, initiatives, initiative(String)
 }
 
 /** Sidebar (task views, projects, calendar) and the selected list, with the task in an inspector. */
@@ -21,6 +21,7 @@ struct ContentView: View {
                     Label("All tasks", systemImage: "list.bullet").tag(Destination.all)
                 }
                 Section("Projects") {
+                    Label("Initiatives", systemImage: "flag").tag(Destination.initiatives)
                     ForEach(model.sidebarProjects, id: \.id) { p in
                         let open = model.data.tasks.filter { $0.projectId == p.id && !$0.closed }.count
                         HStack {
@@ -42,6 +43,8 @@ struct ContentView: View {
                 switch destination ?? .active {
                 case .calendar: CalendarView(selected: $selected)
                 case .triage: TriageView(selectedTask: $selected)
+                case .initiatives: InitiativesView { destination = .initiative($0) }
+                case let .initiative(id): InitiativeView(id: id, back: { destination = .initiatives }, openProject: { destination = .project($0) })
                 default: TaskListView(destination: destination ?? .active, selected: $selected)
                 }
             }
@@ -79,6 +82,7 @@ struct ContentView: View {
         // Our pages: "<origin>/task/<id>", or "#task/<id>" in older text.
         if let m = url.firstMatch(of: /[\/#]task\/([0-9a-f-]{36})/) { selected = String(m.output.1); return true }
         if let m = url.firstMatch(of: /[\/#]tasks\/project\/([0-9a-f-]{36})/) { destination = .project(String(m.output.1)); return true }
+        if let m = url.firstMatch(of: /[\/#]tasks\/initiative\/([0-9a-f-]{36})/) { destination = .initiative(String(m.output.1)); return true }
         return false
     }
 }
@@ -98,7 +102,10 @@ struct TaskListView: View {
         let closed = (destination == .all || isProject) ? tasks.filter(\.closed).sorted { ($0.closedAt ?? .distantPast) > ($1.closedAt ?? .distantPast) } : []
         List(selection: $selected) {
             if let e = model.error { Text(e).foregroundStyle(.red) }
-            if case let .project(id) = destination { ProjectScheduleSection(schedule: schedule, projectName: model.project(id)?.name ?? "") }
+            if case let .project(id) = destination {
+                InitiativeChips(projectId: id)
+                ProjectScheduleSection(schedule: schedule, projectName: model.project(id)?.name ?? "")
+            }
             ForEach(groups) { g in
                 Section {
                     ForEach(g.tasks, id: \.id) { t in TaskRowView(task: t).tag(t.id) }
@@ -142,6 +149,7 @@ struct TaskListView: View {
         case let .project(id): model.project(id)?.name ?? "Project"
         case .calendar: "Calendar"
         case .triage: "Triage"
+        case .initiatives, .initiative: "Initiatives"
         }
     }
 
@@ -151,7 +159,7 @@ struct TaskListView: View {
             let inView: Bool = switch destination {
             case .active: t.status == .todo || t.status == .in_progress
             case .backlog: t.status == .backlog
-            case .all, .calendar, .triage: true
+            case .all, .calendar, .triage, .initiatives, .initiative: true
             case let .project(id): t.projectId == id
             }
             return inView && (q.isEmpty || plainText(t.title).lowercased().contains(q) || "#\(t.number)" == q)

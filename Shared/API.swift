@@ -134,6 +134,20 @@ final class API: @unchecked Sendable {
 
     func deleteEvent(_ id: String) async throws { try await send("DELETE", "api/v1/events/\(id)", body: nil, type: nil) }
 
+    // ---- initiatives, as merge patches (projectIds replaces the list; NSNull clears targetDate) ----
+
+    @discardableResult
+    func createInitiative(name: String) async throws -> String {
+        let out = try await send("POST", "api/v1/initiatives", body: try JSONSerialization.data(withJSONObject: ["name": name]), type: "application/json")
+        return ((try? JSONSerialization.jsonObject(with: out)) as? [String: Any])?["id"] as? String ?? ""
+    }
+
+    func patchInitiative(_ id: String, _ patch: [String: Any]) async throws {
+        try await send("PATCH", "api/v1/initiatives/\(id)", body: try JSONSerialization.data(withJSONObject: patch), type: "application/json")
+    }
+
+    func deleteInitiative(_ id: String) async throws { try await send("DELETE", "api/v1/initiatives/\(id)", body: nil, type: nil) }
+
     func download(_ id: String) async throws -> Data { try await send("GET", "api/v1/attachments/\(id)", body: nil, type: nil) }
 
     @discardableResult
