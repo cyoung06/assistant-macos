@@ -9,6 +9,8 @@ typealias TaskLabel = Components.Schemas.LabelResponse
 typealias Initiative = Components.Schemas.InitiativeResponse
 typealias ProjectSchedule = Components.Schemas.ProjectSchedule
 typealias RecurringSummary = Components.Schemas.RecurringSummary
+typealias TriageInput = Components.Schemas.TriageInputResponse
+typealias TriageItem = Components.Schemas.TriageItemResponse
 typealias Due = Components.Schemas.DueDto
 typealias EventItem = Components.Schemas.EventOccurrence
 typealias RefItem = Components.Schemas.Ref
@@ -77,6 +79,21 @@ final class API: @unchecked Sendable {
 
     func search(_ q: String) async throws -> [RefItem] { try await client.search(.init(query: .init(q: q, limit: 10))).ok.body.json }
     func resolve(_ url: String) async throws -> RefItem { try await client.resolve(.init(query: .init(url: url))).ok.body.json }
+
+    // ---- Triage ---------------------------------------------------------------------
+
+    func triage() async throws -> [TriageInput] { try await client.triage().ok.body.json }
+
+    func acceptTriage(_ id: String, _ proposal: Proposal) async throws {
+        _ = try await client.acceptTriage(.init(path: .init(id: id), body: .json(proposal))).ok
+    }
+
+    func declineTriage(_ id: String) async throws { _ = try await client.declineTriage(.init(path: .init(id: id))).ok }
+    func retryTriage(_ id: String) async throws { _ = try await client.retryTriage(.init(path: .init(id: id))).ok }
+    func dismissTriage(_ id: String) async throws { _ = try await client.dismissTriage(.init(path: .init(id: id))).noContent }
+
+    /** Where an uploaded file (a shared screenshot) is served. */
+    func attachmentURL(_ id: String) -> URL { base.appendingPathComponent("api/v1/attachments/\(id)") }
 
     /** Sends text and uploaded screenshots to Triage; the model reads them in the background. */
     func submitTriage(text: String, attachmentIds: [String], title: String = "", link: String? = nil, source: String = "capture") async throws {

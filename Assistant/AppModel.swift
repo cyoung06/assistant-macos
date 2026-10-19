@@ -22,6 +22,8 @@ final class AppModel: ObservableObject {
     @Published var error: String?
     /** A task to show (from a reference link, the menu bar or a notification). */
     @Published var openTask: String?
+    /** Triage: inputs with their suggestions (loaded with everything else, and polled while the model reads). */
+    @Published var triage: [TriageInput] = []
 
     @Published var serverURL: String = UserDefaults.standard.string(forKey: "server") ?? Defaults.server {
         didSet { UserDefaults.standard.set(serverURL, forKey: "server") }
@@ -54,6 +56,7 @@ final class AppModel: ObservableObject {
             error = nil
             if let raw = try? JSONEncoder().encode(data) { try? raw.write(to: cacheURL) }
             Reminders.schedule(data.tasks)
+            await refreshTriage()
         } catch {
             self.error = error.localizedDescription
         }
@@ -86,6 +89,29 @@ final class AppModel: ObservableObject {
     }
 
     func project(_ id: String?) -> Project? { data.projects.first { $0.id == id } }
+
+    func refreshTriage() async {
+        if let list = try? await api.triage() { triage = list }
+    }
+
+    /** Suggestions waiting for a decision, plus inputs the model hasn't read yet. */
+    var triageCount: Int {
+        triage.reduce(0) { n, i in n + (i.status == "pending" ? 1 : i.items.filter { $0.status == "pending" }.count) }
+    }
+
+    /** Changes Triage on screen at once, sends it, and puts it back if the server refuses. */
+    func triageAction(_ change: ([TriageInput]) -> [TriageInput], _ send: @escaping () async throws -> Void) async {
+        let before = triage
+        triage = change(triage)
+        do {
+            try await send()
+            await refreshTriage()
+            if let t = try? await api.tasks() { data.tasks = t }
+        } catch {
+            triage = before
+            self.error = error.localizedDescription
+        }
+    }
 
     /** Open projects for the sidebar: those in an active initiative, or in none (a finished semester's courses drop out). */
     var sidebarProjects: [Project] {

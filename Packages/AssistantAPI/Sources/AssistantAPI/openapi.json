@@ -23,6 +23,18 @@
               "$ref": "#/components/schemas/Proposal"
             },
             "type": "array"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "verdict": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -589,6 +601,33 @@
         "required": [
           "createdAt",
           "path"
+        ],
+        "type": "object"
+      },
+      "GitHubAccount": {
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "installUrl": {
+            "type": "string"
+          },
+          "installations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "configured",
+          "installUrl"
         ],
         "type": "object"
       },
@@ -1243,6 +1282,9 @@
               "plms_notice",
               "plms_assignment",
               "plms_activity",
+              "github_repo",
+              "github_issue",
+              "github_pr",
               "link"
             ],
             "type": "string"
@@ -1412,7 +1454,8 @@
               "plms",
               "email",
               "upload",
-              "ical"
+              "ical",
+              "contests"
             ],
             "type": "string"
           }
@@ -1721,6 +1764,18 @@
               "null"
             ]
           },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sender": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "source": {
             "type": "string"
           },
@@ -1732,6 +1787,12 @@
           },
           "title": {
             "type": "string"
+          },
+          "verdict": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -1776,6 +1837,17 @@
           "id",
           "proposal",
           "status"
+        ],
+        "type": "object"
+      },
+      "TriageProfile": {
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
         ],
         "type": "object"
       },
@@ -2302,6 +2374,26 @@
         },
         "tags": [
           "calendar-controller"
+        ]
+      }
+    },
+    "/api/v1/github/account": {
+      "get": {
+        "operationId": "githubAccount",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubAccount"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "git-hub-controller"
         ]
       }
     },
@@ -3827,6 +3919,54 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TriageItemResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "triage-controller"
+        ]
+      }
+    },
+    "/api/v1/triage/profile": {
+      "get": {
+        "operationId": "triageProfile",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriageProfile"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "triage-controller"
+        ]
+      },
+      "put": {
+        "operationId": "setTriageProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriageProfile"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriageProfile"
                 }
               }
             },

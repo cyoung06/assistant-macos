@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum Destination: Hashable {
-    case active, backlog, all, project(String), calendar
+    case triage, active, backlog, all, project(String), calendar
 }
 
 /** Sidebar (task views, projects, calendar) and the selected list, with the task in an inspector. */
@@ -14,6 +14,7 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: $destination) {
+                Label("Triage", systemImage: "tray.and.arrow.down").badge(model.triageCount).tag(Destination.triage)
                 Section("Tasks") {
                     Label("Active", systemImage: "circle.dotted.circle").tag(Destination.active)
                     Label("Backlog", systemImage: "tray").tag(Destination.backlog)
@@ -40,6 +41,7 @@ struct ContentView: View {
             Group {
                 switch destination ?? .active {
                 case .calendar: CalendarView(selected: $selected)
+                case .triage: TriageView(selectedTask: $selected)
                 default: TaskListView(destination: destination ?? .active, selected: $selected)
                 }
             }
@@ -139,6 +141,7 @@ struct TaskListView: View {
         case .all: "All tasks"
         case let .project(id): model.project(id)?.name ?? "Project"
         case .calendar: "Calendar"
+        case .triage: "Triage"
         }
     }
 
@@ -148,7 +151,7 @@ struct TaskListView: View {
             let inView: Bool = switch destination {
             case .active: t.status == .todo || t.status == .in_progress
             case .backlog: t.status == .backlog
-            case .all, .calendar: true
+            case .all, .calendar, .triage: true
             case let .project(id): t.projectId == id
             }
             return inView && (q.isEmpty || plainText(t.title).lowercased().contains(q) || "#\(t.number)" == q)
