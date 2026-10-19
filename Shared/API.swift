@@ -119,6 +119,21 @@ final class API: @unchecked Sendable {
         return id
     }
 
+    // ---- events, as plain JSON (the editor sends merge patches); appending(path:) escapes the ID ----
+
+    func event(_ id: String) async throws -> [String: Any] {
+        let data = try await send("GET", "api/v1/events/\(id)", body: nil, type: nil)
+        return (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+    }
+
+    func saveEvent(id: String?, _ body: [String: Any]) async throws {
+        let json = try JSONSerialization.data(withJSONObject: body)
+        if let id { try await send("PATCH", "api/v1/events/\(id)", body: json, type: "application/json") }
+        else { try await send("POST", "api/v1/events", body: json, type: "application/json") }
+    }
+
+    func deleteEvent(_ id: String) async throws { try await send("DELETE", "api/v1/events/\(id)", body: nil, type: nil) }
+
     func download(_ id: String) async throws -> Data { try await send("GET", "api/v1/attachments/\(id)", body: nil, type: nil) }
 
     @discardableResult

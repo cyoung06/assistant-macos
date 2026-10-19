@@ -13,6 +13,7 @@
 		1468A047BF2B996204913DAE /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38016EC07C40680B0ADE0A2 /* CalendarView.swift */; };
 		1F106ABC543B69FC05078163 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA6F27CA40561AE84FEDF4E5 /* ContentView.swift */; };
 		316B36E0DAC8A09C76EFF8B2 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 576ED3440CE0DE6BAB9FA2E6 /* SettingsView.swift */; };
+		33BE591F4DBF41FEB719E955 /* EventEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53058ED33125BBC098EFAC5B /* EventEditor.swift */; };
 		349A15C32C0DAC9BE772F178 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0A1A4B8C0DF6503075DECD0D /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		48F709E60DF5DFCBE3C863C4 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9721ABC546035EFF587925A0 /* ShareViewController.swift */; };
 		5FF34E49D2B742C89440B8A4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B735F17A387FA063D84991C8 /* AppModel.swift */; };
@@ -60,6 +61,7 @@
 		0A20A9483B2B64425BF1A36D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		10E0E631AA38C1EC342C8804 /* AssistantAPI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AssistantAPI; path = Packages/AssistantAPI; sourceTree = SOURCE_ROOT; };
 		24C0D77C4D7EB6417F566FDF /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
+		53058ED33125BBC098EFAC5B /* EventEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEditor.swift; sourceTree = "<group>"; };
 		576ED3440CE0DE6BAB9FA2E6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		59D09BDF66A0DB53A2E52B9B /* TaskDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailView.swift; sourceTree = "<group>"; };
 		69AA7DFFD6F76C5C5DA46DE8 /* AssistantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantApp.swift; sourceTree = "<group>"; };
@@ -137,6 +139,7 @@
 				907C5C215991FDCCB2EDF98F /* CalendarLayout.swift */,
 				F38016EC07C40680B0ADE0A2 /* CalendarView.swift */,
 				BA6F27CA40561AE84FEDF4E5 /* ContentView.swift */,
+				53058ED33125BBC098EFAC5B /* EventEditor.swift */,
 				0A20A9483B2B64425BF1A36D /* Info.plist */,
 				CFDF77BDEB586CABD9FDD6A2 /* MenuBarView.swift */,
 				854FC7D59E747EF8FF2CEB3B /* ProjectScheduleView.swift */,
@@ -275,6 +278,7 @@
 				1468A047BF2B996204913DAE /* CalendarView.swift in Sources */,
 				7B12431F07F5267B8F7959AF /* CaptureView.swift in Sources */,
 				1F106ABC543B69FC05078163 /* ContentView.swift in Sources */,
+				33BE591F4DBF41FEB719E955 /* EventEditor.swift in Sources */,
 				E3E30A52CF0A457957CDF189 /* MailFile.swift in Sources */,
 				880089C802722D49711D48C8 /* MenuBarView.swift in Sources */,
 				84AEB21967AF9500B2808650 /* ProjectScheduleView.swift in Sources */,

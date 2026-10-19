@@ -1,7 +1,7 @@
 import SwiftUI
 
 /**
- * Week and month grids of events and deadlines (events are edited on the web). The week shows all
+ * Week and month grids of events and deadlines; clicking an event opens its editor. The week shows all
  * seven days when the window is wide, three when narrow, one when very narrow.
  */
 struct CalendarView: View {
@@ -14,6 +14,7 @@ struct CalendarView: View {
     @State private var days = 7
     @State private var events: [EventItem] = []
     @State private var error: String?
+    @State private var editing: EventTarget?
 
     private var range: (from: String, to: String) {
         switch mode {
@@ -26,12 +27,15 @@ struct CalendarView: View {
         let (from, to) = range
         let colors = Dictionary(model.data.projects.map { ($0.id, $0.color) }, uniquingKeysWith: { a, _ in a })
         let items = calItems(events: events, tasks: model.data.tasks, projectColors: colors)
-        let select = { (id: String) in selected = id }
+        // A deadline opens its task; an event opens the editor (read-only for a source's events).
+        let open = { (item: CalItem) in
+            if let t = item.task { selected = t.id } else if let e = item.event { editing = .existing(id: e.id, occurrence: dayString(item.start)) }
+        }
         VStack(spacing: 0) {
             if let error { Text(error).font(.caption).foregroundStyle(.red).padding(4) }
             switch mode {
-            case .week: WeekGrid(dates: (0..<days).map { addDays(from, $0) }, items: items, select: select)
-            case .month: MonthGrid(anchor: anchor, items: items, select: select) { anchor = $0; mode = .week }
+            case .week: WeekGrid(dates: (0..<days).map { addDays(from, $0) }, items: items, open: open)
+            case .month: MonthGrid(anchor: anchor, items: items, open: open) { anchor = $0; mode = .week }
             }
         }
         // Swipe sideways (two fingers) to page; the month also pages with up/down scrolling, as the hours don't scroll there.
@@ -50,12 +54,21 @@ struct CalendarView: View {
                 Button { move(1) } label: { Image(systemName: "chevron.right") }.keyboardShortcut(.rightArrow).help("Next")
             }
             ToolbarItem {
+                Button { editing = .new(day: mode == .week ? (from <= todayString && todayString <= to ? todayString : from) : anchor) } label: { Label("New event", systemImage: "calendar.badge.plus") }
+                    .help("New event")
+            }
+            ToolbarItem {
                 Picker("View", selection: $mode) { ForEach(Mode.allCases, id: \.self) { Text($0.rawValue) } }.pickerStyle(.segmented)
             }
         }
-        .task(id: "\(from)/\(to)") {
-            do { events = try await model.api.events(from: from, to: to); error = nil } catch { self.error = error.localizedDescription }
+        .sheet(item: $editing, onDismiss: { Task { await reload(from: from, to: to) } }) { t in
+            EventEditor(target: t) { editing = nil }.environmentObject(model)
         }
+        .task(id: "\(from)/\(to)") { await reload(from: from, to: to) }
+    }
+
+    private func reload(from: String, to: String) async {
+        do { events = try await model.api.events(from: from, to: to); error = nil } catch { self.error = error.localizedDescription }
     }
 
     private func move(_ by: Int) {
@@ -137,7 +150,7 @@ private struct WeekGrid: View {
     static let hour: CGFloat = 48
     let dates: [String]
     let items: [CalItem]
-    let select: (String) -> Void
+    let open: (CalItem) -> Void
     @State private var allDayOpen = false
 
     var body: some View {
@@ -155,7 +168,7 @@ private struct WeekGrid: View {
                         .frame(width: Self.axis - 6, alignment: .trailing).padding(.trailing, 6).padding(.top, 2)
                     ForEach(dates.indices, id: \.self) { i in
                         VStack(alignment: .leading, spacing: 2) {
-                            ForEach(allDay[i].prefix(limit)) { ItemChip(item: $0, select: select) }
+                            ForEach(allDay[i].prefix(limit)) { ItemChip(item: $0, open: open) }
                             if allDay[i].count > limit {
                                 Button("+\(allDay[i].count - limit) more") { allDayOpen = true }.buttonStyle(.link).font(.caption2)
                             }
@@ -179,7 +192,7 @@ private struct WeekGrid: View {
                         }
                         .padding(.trailing, 6)
                         ForEach(dates, id: \.self) { d in
-                            DayColumn(day: d, placed: dayLayout(items, day: d), select: select).frame(maxWidth: .infinity)
+                            DayColumn(day: d, placed: dayLayout(items, day: d), open: open).frame(maxWidth: .infinity)
                         }
                     }
                     .overlay(alignment: .top) { Color.clear.frame(height: 1).id("start").padding(.top, Self.hour * 8 - 12) }
@@ -208,7 +221,7 @@ private struct DayHeader: View {
 private struct DayColumn: View {
     let day: String
     let placed: [Placed]
-    let select: (String) -> Void
+    let open: (CalItem) -> Void
     private let hour = WeekGrid.hour
 
     var body: some View {
@@ -223,7 +236,7 @@ private struct DayColumn: View {
                 ForEach(placed) { p in
                     let cw = w / CGFloat(p.cols)
                     let h = max(CGFloat(p.endMin - p.startMin) / 60 * hour - 2, 12)
-                    Block(item: p.item, height: h, select: select)
+                    Block(item: p.item, height: h, open: open)
                         .frame(width: max(cw - 2, 1), height: h)
                         .padding(.leading, cw * CGFloat(p.col) + 1)
                         .padding(.top, CGFloat(p.startMin) / 60 * hour + 1)
@@ -248,8 +261,7 @@ private struct DayColumn: View {
 private struct Block: View {
     let item: CalItem
     let height: CGFloat
-    let select: (String) -> Void
-    @State private var showing = false
+    let open: (CalItem) -> Void
 
     var body: some View {
         let color = itemColor(item)
@@ -270,8 +282,7 @@ private struct Block: View {
         .background(color.opacity(item.task == nil ? 0.24 : 0.14))
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .contentShape(Rectangle())
-        .onTapGesture { if let t = item.task { select(t.id) } else { showing = true } }
-        .popover(isPresented: $showing) { EventInfo(item: item) }
+        .onTapGesture { open(item) }
         .help(item.title)
     }
 }
@@ -279,8 +290,7 @@ private struct Block: View {
 /** An all-day item, or any item in the month grid. */
 private struct ItemChip: View {
     let item: CalItem
-    let select: (String) -> Void
-    @State private var showing = false
+    let open: (CalItem) -> Void
 
     var body: some View {
         let color = itemColor(item)
@@ -295,8 +305,7 @@ private struct ItemChip: View {
         .padding(.horizontal, 4).padding(.vertical, 1)
         .background(RoundedRectangle(cornerRadius: 3).fill(color.opacity(item.allDay && item.task == nil ? 0.3 : 0.12)))
         .contentShape(Rectangle())
-        .onTapGesture { if let t = item.task { select(t.id) } else { showing = true } }
-        .popover(isPresented: $showing) { EventInfo(item: item) }
+        .onTapGesture { open(item) }
         .help(item.title)
     }
 }
@@ -304,7 +313,7 @@ private struct ItemChip: View {
 private struct MonthGrid: View {
     let anchor: String
     let items: [CalItem]
-    let select: (String) -> Void
+    let open: (CalItem) -> Void
     let pickDay: (String) -> Void
 
     var body: some View {
@@ -319,7 +328,7 @@ private struct MonthGrid: View {
             ForEach(0..<6, id: \.self) { r in
                 HStack(spacing: 0) {
                     ForEach(grid[(r * 7)..<(r * 7 + 7)], id: \.self) { d in
-                        MonthCell(day: d, inMonth: d.hasPrefix(month), items: byDay[d] ?? [], select: select, pickDay: pickDay)
+                        MonthCell(day: d, inMonth: d.hasPrefix(month), items: byDay[d] ?? [], open: open, pickDay: pickDay)
                     }
                 }
             }
@@ -331,7 +340,7 @@ private struct MonthCell: View {
     let day: String
     let inMonth: Bool
     let items: [CalItem]
-    let select: (String) -> Void
+    let open: (CalItem) -> Void
     let pickDay: (String) -> Void
 
     var body: some View {
@@ -348,7 +357,7 @@ private struct MonthCell: View {
                         .background(Circle().fill(today ? Color.accentColor : .clear))
                 }
                 .buttonStyle(.plain).help("Show this week")
-                ForEach(items.prefix(shown)) { ItemChip(item: $0, select: select) }
+                ForEach(items.prefix(shown)) { ItemChip(item: $0, open: open) }
                 if items.count > shown {
                     Button("+\(items.count - shown) more") { pickDay(day) }.buttonStyle(.link).font(.caption2)
                 }
@@ -359,21 +368,6 @@ private struct MonthCell: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .top) { Rectangle().fill(Color.secondary.opacity(0.2)).frame(height: 1) }
         .overlay(alignment: .leading) { Rectangle().fill(Color.secondary.opacity(0.2)).frame(width: 1) }
-    }
-}
-
-private struct EventInfo: View {
-    let item: CalItem
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(item.title).font(.headline)
-            Text(format(dayString(item.start), "EEEE, MMM d") + (item.allDay ? "" : " · " + timeText(item)))
-            if let e = item.event {
-                Text(([e.calendarName] + (e.repeats ? ["repeats"] : [])).joined(separator: " · ")).foregroundStyle(.secondary)
-            }
-        }
-        .padding()
-        .frame(minWidth: 220, alignment: .leading)
     }
 }
 
