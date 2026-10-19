@@ -51,6 +51,9 @@ targets:
             CFBundleURLSchemes: [mid]
           - CFBundleURLName: PLMS
             CFBundleURLSchemes: [plms]
+          # The Share extension hands things to Triage through this (see Shared/Handoff.swift).
+          - CFBundleURLName: Share hand-off
+            CFBundleURLSchemes: [assistant-handoff]
   ShareExtension:
     type: app-extension
     platform: macOS

@@ -40,6 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     /** Mails (from Apple Mail) and images dropped on the Dock icon open in Capture. */
     func application(_ application: NSApplication, open urls: [URL]) {
+        let urls = urls.filter(\.isFileURL)
+        guard !urls.isEmpty else { return }
         if let mail = urls.lazy.filter({ $0.pathExtension.lowercased() == "eml" }).compactMap({ (try? Data(contentsOf: $0)).flatMap(MailFile.parse) }).first {
             CapturePanel.shared.show(mail: mail)
             return
@@ -98,6 +100,7 @@ final class CapturePanel {
         p.isReleasedWhenClosed = false
         p.contentView = NSHostingView(rootView: CaptureView(api: AppModel.shared.api, text: text, images: images, mail: mail, handOff: { text, title, link, images in
             TriageOutbox.shared.send(text: text, title: title, link: link, images: images)
+            return true
         }) { [weak self] in
             self?.panel?.close()
             Task { await AppModel.shared.refresh() }

@@ -11,7 +11,8 @@ final class ShareViewController: NSViewController {
         Task { @MainActor in
             let (text, images) = await collect()
             let server = UserDefaults(suiteName: "com.syeyoung.assistant")?.string(forKey: "server") ?? Defaults.server
-            let root = CaptureView(api: API(base: URL(string: server)!), text: text, images: images) { [weak self] in
+            // To Triage goes through the app, which sends it in the background, so the sheet closes at once.
+            let root = CaptureView(api: API(base: URL(string: server)!), text: text, images: images, handOff: Handoff.give) { [weak self] in
                 self?.extensionContext?.completeRequest(returningItems: nil)
             }
             let host = NSHostingView(rootView: root.frame(width: 520))
