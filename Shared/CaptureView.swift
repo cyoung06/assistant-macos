@@ -213,7 +213,7 @@ struct CaptureView: View {
             for (i, p) in proposals.enumerated() where p.keep {
                 let x = p.proposal
                 if x.kind == "event" {
-                    try await api.createEvent(.init(end: x.end, endDate: x.endDate, notes: [x.description, mailDescription].compactMap { $0 }.joined(separator: "\n\n"), start: x.start, startDate: x.startDate, title: p.title))
+                    try await api.createEvent(.init(end: x.end, endDate: x.endDate, notes: [x.description, mailDescription].compactMap { $0 }.joined(separator: "\n\n"), projectId: x.projectId, start: x.start, startDate: x.startDate, title: p.title))
                 } else {
                     // The screenshots go with the first task made from them.
                     _ = try await api.create(.init(
