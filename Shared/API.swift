@@ -78,9 +78,10 @@ final class API: @unchecked Sendable {
     func search(_ q: String) async throws -> [RefItem] { try await client.search(.init(query: .init(q: q, limit: 10))).ok.body.json }
     func resolve(_ url: String) async throws -> RefItem { try await client.resolve(.init(query: .init(url: url))).ok.body.json }
 
-    func analyze(text: String, attachmentIds: [String]) async throws -> [Proposal] {
-        switch try await client.analyzeCapture(.init(body: .json(.init(attachmentIds: attachmentIds, text: text)))) {
-        case let .ok(r): return try r.body.json.items
+    /** Sends text and uploaded screenshots to Triage; the model reads them in the background. */
+    func submitTriage(text: String, attachmentIds: [String], title: String = "", link: String? = nil, source: String = "capture") async throws {
+        switch try await client.submitTriage(.init(body: .json(.init(attachmentIds: attachmentIds, link: link, source: source, text: text, title: title)))) {
+        case .accepted: return
         case let .undocumented(code, payload): throw await problem(code, payload)
         }
     }

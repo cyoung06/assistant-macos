@@ -7,9 +7,9 @@ struct MailFile {
     let messageId: String?
     let text: String
 
-    /** Reopens this mail in Apple Mail. */
+    /** The mail as a reference: mid:<Message-ID> (RFC 2392); the app opens it in Apple Mail. */
     var link: String? {
-        messageId.map { "message:%3C" + ($0.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "@.-_"))) ?? $0) + "%3E" }
+        messageId.map { "mid:" + ($0.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "@.-_"))) ?? $0) }
     }
 
     /** Parses headers (unfolded, encoded words decoded) and the first plain-text part. */

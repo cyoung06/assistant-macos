@@ -30,22 +30,13 @@ struct CaptureView: View {
     @State private var projects: [Project] = []
     @State private var busy = false
     @State private var error: String?
-    @State private var proposals: [Pick] = []
-    @State private var analyzed = false
     @State private var uploaded: [String] = []
-
-    struct Pick: Identifiable {
-        let id = UUID()
-        let proposal: Proposal
-        var keep = true
-        var title: String
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Picker("", selection: $mode) {
-                Text("Quick task").tag(0)
-                Text("Analyze").tag(1)
+                Text("To Triage").tag(0)
+                Text("Quick task").tag(1)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -65,7 +56,7 @@ struct CaptureView: View {
                 }
             }
 
-            if mode == 0 { quickTask } else { analyze }
+            if mode == 0 { triage } else { quickTask }
 
             if let error { Text(error).foregroundStyle(.red).font(.callout) }
         }
@@ -129,7 +120,8 @@ struct CaptureView: View {
 
     private var mailDescription: String? {
         guard let m = mail else { return nil }
-        return (["From: \(m.from)"] + (m.link.map { ["[Open in Mail](\($0))"] } ?? [])).joined(separator: "\n")
+        let subject = m.subject.replacingOccurrences(of: "[", with: "\\[").replacingOccurrences(of: "]", with: "\\]")
+        return ((m.link.map { ["Mail: [\(subject)](\($0))"] } ?? []) + ["From: \(m.from)"]).joined(separator: "\n")
     }
 
     private func uploadImages() async throws -> [String] {
@@ -152,96 +144,32 @@ struct CaptureView: View {
         } catch { self.error = error.localizedDescription }
     }
 
-    // ---- analyze --------------------------------------------------------------------
+    // ---- triage ---------------------------------------------------------------------
 
-    private var analyze: some View {
+    /** Sends it to Triage and closes: the model reads it in the background, and its suggestions wait there. */
+    private var triage: some View {
         VStack(alignment: .leading, spacing: 8) {
             TextField("Text to read, or a note for the model (optional)", text: $text, axis: .vertical).lineLimit(2...6)
-            if !analyzed {
-                HStack {
-                    Text(images.isEmpty ? "Paste or drop screenshots here." : "\(images.count) image(s)").font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Cancel", action: onDone).keyboardShortcut(.cancelAction)
-                    Button(busy ? "Reading…" : "Analyze") { Task { await runAnalyze() } }
-                        .keyboardShortcut(.defaultAction).disabled(busy || (images.isEmpty && text.isEmpty))
-                }
-            } else {
-                if proposals.isEmpty { Text("Nothing to track found.").foregroundStyle(.secondary) }
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach($proposals) { $p in
-                            HStack(alignment: .top) {
-                                Toggle("", isOn: $p.keep).labelsHidden()
-                                VStack(alignment: .leading, spacing: 2) {
-                                    TextField("Title", text: $p.title).textFieldStyle(.roundedBorder)
-                                    Text(describe(p.proposal)).font(.caption).foregroundStyle(.secondary)
-                                    if !p.proposal.description.isEmpty { Text(p.proposal.description).font(.caption) }
-                                }
-                            }
-                        }
-                    }
-                }
-                .frame(maxHeight: 320)
-                HStack {
-                    Button("Again") { analyzed = false; proposals = [] }
-                    Spacer()
-                    Button("Cancel", action: onDone).keyboardShortcut(.cancelAction)
-                    Button("Create \(proposals.filter(\.keep).count)") { Task { await createPicked() } }
-                        .keyboardShortcut(.defaultAction).disabled(busy || !proposals.contains(where: \.keep))
-                }
+            HStack {
+                Text(images.isEmpty ? "Paste or drop screenshots here." : "\(images.count) image(s)").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("Cancel", action: onDone).keyboardShortcut(.cancelAction)
+                Button(busy ? "Sending…" : "Send to Triage") { Task { await sendToTriage() } }
+                    .keyboardShortcut(.defaultAction).disabled(busy || (images.isEmpty && text.isEmpty))
             }
         }
     }
 
-    private func runAnalyze() async {
+    private func sendToTriage() async {
         busy = true
         error = nil
         defer { busy = false }
         do {
             let ids = try await uploadImages()
             let source = mail.map { "Mail from \($0.from), subject \($0.subject):\n\n" } ?? ""
-            proposals = try await api.analyze(text: source + text, attachmentIds: ids).map { Pick(proposal: $0, title: $0.title) }
-            analyzed = true
-        } catch { self.error = error.localizedDescription }
-    }
-
-    private func createPicked() async {
-        busy = true
-        defer { busy = false }
-        do {
-            let firstTask = proposals.firstIndex { $0.keep && $0.proposal.kind != "event" }
-            for (i, p) in proposals.enumerated() where p.keep {
-                let x = p.proposal
-                if x.kind == "event" {
-                    try await api.createEvent(.init(end: x.end, endDate: x.endDate, notes: [x.description, mailDescription].compactMap { $0 }.joined(separator: "\n\n"), projectId: x.projectId, start: x.start, startDate: x.startDate, title: p.title))
-                } else {
-                    // The screenshots go with the first task made from them.
-                    _ = try await api.create(.init(
-                        attachmentIds: i == firstTask ? uploaded : nil, description: [x.description, mailDescription].compactMap { $0 }.joined(separator: "\n\n"), due: x.due, labelIds: x.labelIds,
-                        priority: x.priority.flatMap { .init(rawValue: $0.rawValue) }, projectId: x.projectId, title: p.title
-                    ))
-                }
-            }
+            try await api.submitTriage(text: source + text, attachmentIds: ids, title: mail?.subject ?? "", link: mail?.link)
             onDone()
         } catch { self.error = error.localizedDescription }
-    }
-
-    private func describe(_ p: Proposal) -> String {
-        let project = projects.first { $0.id == p.projectId }?.name
-        let f = DateFormatter()
-        f.timeZone = seoul
-        f.dateFormat = "MMM d HH:mm"
-        var when: String
-        if p.kind == "event", let s = p.start, let e = p.end {
-            when = "Event · \(f.string(from: s))–" + { f.dateFormat = "HH:mm"; return f.string(from: e) }()
-        } else if p.kind == "event", let d = p.startDate {
-            when = "Event · \(d) (all day)"
-        } else if let due = p.due {
-            when = "Task · due \(dueText(due, today: todayString))"
-        } else {
-            when = "Task · no due date"
-        }
-        return [when, project].compactMap { $0 }.joined(separator: " · ")
     }
 
     // ---- paste and drop ---------------------------------------------------------------
