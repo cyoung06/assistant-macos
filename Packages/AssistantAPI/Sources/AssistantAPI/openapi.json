@@ -85,6 +85,71 @@
         ],
         "type": "object"
       },
+      "ChatGptComplete": {
+        "properties": {
+          "redirectUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "redirectUrl"
+        ],
+        "type": "object"
+      },
+      "ChatGptConnect": {
+        "properties": {
+          "authorizeUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "authorizeUrl"
+        ],
+        "type": "object"
+      },
+      "ChatGptStatus": {
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": "string"
+          },
+          "plan": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quota": {
+            "items": {
+              "$ref": "#/components/schemas/QuotaWindow"
+            },
+            "type": "array"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "configured",
+          "model",
+          "state"
+        ],
+        "type": "object"
+      },
       "CreateEventRequest": {
         "properties": {
           "categories": {
@@ -136,6 +201,42 @@
         ],
         "type": "object"
       },
+      "CreateInitiativeRequest": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "projectIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "planned",
+              "active",
+              "completed"
+            ],
+            "type": "string"
+          },
+          "targetDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "CreateProjectRequest": {
         "properties": {
           "color": {
@@ -146,6 +247,13 @@
           },
           "description": {
             "type": "string"
+          },
+          "initiativeIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
           },
           "name": {
             "type": "string"
@@ -245,6 +353,29 @@
         },
         "required": [
           "title"
+        ],
+        "type": "object"
+      },
+      "CreateTokenRequest": {
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Created": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "url"
         ],
         "type": "object"
       },
@@ -437,6 +568,60 @@
         "required": [
           "createdAt",
           "path"
+        ],
+        "type": "object"
+      },
+      "InitiativeResponse": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "doneCount": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "projectIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "planned",
+              "active",
+              "completed"
+            ],
+            "type": "string"
+          },
+          "targetDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "taskCount": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "description",
+          "doneCount",
+          "id",
+          "name",
+          "projectIds",
+          "status",
+          "taskCount"
         ],
         "type": "object"
       },
@@ -657,6 +842,46 @@
         ],
         "type": "object"
       },
+      "MailTaskRequest": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "due": {
+            "$ref": "#/components/schemas/DueDto"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "priority": {
+            "enum": [
+              "none",
+              "urgent",
+              "high",
+              "medium",
+              "low"
+            ],
+            "type": "string"
+          },
+          "projectId": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "type": "object"
+      },
       "MoveReport": {
         "properties": {
           "labels": {
@@ -684,6 +909,26 @@
         ],
         "type": "object"
       },
+      "NewToken": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "token"
+        ],
+        "type": "object"
+      },
       "ProjectResponse": {
         "properties": {
           "color": {
@@ -699,6 +944,13 @@
           "id": {
             "format": "uuid",
             "type": "string"
+          },
+          "initiativeIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
           },
           "name": {
             "type": "string"
@@ -730,6 +982,7 @@
           "description",
           "doneCount",
           "id",
+          "initiativeIds",
           "name",
           "state",
           "taskCount"
@@ -807,6 +1060,45 @@
           "description",
           "kind",
           "title"
+        ],
+        "type": "object"
+      },
+      "PublicProject": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "QuotaWindow": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "resetsAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "usedPercent": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "usedPercent"
         ],
         "type": "object"
       },
@@ -1191,6 +1483,34 @@
         ],
         "type": "object"
       },
+      "TokenInfo": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastUsed": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "createdAt",
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "UpdateCalendarRequest": {
         "properties": {
           "color": {
@@ -1219,6 +1539,16 @@
           "description": {
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "initiativeIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": [
+              "array",
               "null"
             ]
           },
@@ -1313,7 +1643,7 @@
     },
     "/api/v1/attachments/{id}": {
       "delete": {
-        "operationId": "delete_2",
+        "operationId": "deleteAttachment",
         "parameters": [
           {
             "in": "path",
@@ -1431,7 +1761,7 @@
     },
     "/api/v1/capture/analyze": {
       "post": {
-        "operationId": "analyze",
+        "operationId": "analyzeCapture",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1456,6 +1786,88 @@
         },
         "tags": [
           "capture-controller"
+        ]
+      }
+    },
+    "/api/v1/chatgpt/account": {
+      "delete": {
+        "operationId": "chatgptDisconnect",
+        "responses": {
+          "204": {
+            "content": {},
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "chat-gpt-controller"
+        ]
+      },
+      "get": {
+        "operationId": "chatgptAccount",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatGptStatus"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "chat-gpt-controller"
+        ]
+      }
+    },
+    "/api/v1/chatgpt/complete": {
+      "post": {
+        "operationId": "chatgptComplete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatGptComplete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatGptStatus"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "chat-gpt-controller"
+        ]
+      }
+    },
+    "/api/v1/chatgpt/connect": {
+      "post": {
+        "operationId": "chatgptConnect",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatGptConnect"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "chat-gpt-controller"
         ]
       }
     },
@@ -1502,7 +1914,7 @@
         ]
       },
       "post": {
-        "operationId": "create_1",
+        "operationId": "createEvent",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1532,7 +1944,7 @@
     },
     "/api/v1/events/{id}": {
       "delete": {
-        "operationId": "delete_1",
+        "operationId": "deleteEvent",
         "parameters": [
           {
             "in": "path",
@@ -1554,7 +1966,7 @@
         ]
       },
       "get": {
-        "operationId": "event",
+        "operationId": "getEvent",
         "parameters": [
           {
             "in": "path",
@@ -1582,7 +1994,7 @@
         ]
       },
       "patch": {
-        "operationId": "update_1",
+        "operationId": "updateEvent",
         "parameters": [
           {
             "in": "path",
@@ -1692,6 +2104,150 @@
         },
         "tags": [
           "feed-controller"
+        ]
+      }
+    },
+    "/api/v1/initiatives": {
+      "get": {
+        "operationId": "initiatives",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InitiativeResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "task-controller"
+        ]
+      },
+      "post": {
+        "operationId": "createInitiative",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInitiativeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiativeResponse"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "task-controller"
+        ]
+      }
+    },
+    "/api/v1/initiatives/{id}": {
+      "delete": {
+        "operationId": "deleteInitiative",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {},
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "task-controller"
+        ]
+      },
+      "get": {
+        "operationId": "initiative",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiativeResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "task-controller"
+        ]
+      },
+      "patch": {
+        "operationId": "updateInitiative",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonNode"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiativeResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "task-controller"
         ]
       }
     },
@@ -1812,7 +2368,7 @@
     },
     "/api/v1/mail/account": {
       "delete": {
-        "operationId": "disconnect",
+        "operationId": "mailDisconnect",
         "responses": {
           "204": {
             "content": {},
@@ -1824,7 +2380,7 @@
         ]
       },
       "get": {
-        "operationId": "account",
+        "operationId": "mailAccount",
         "responses": {
           "200": {
             "content": {
@@ -1844,7 +2400,7 @@
     },
     "/api/v1/mail/connect": {
       "post": {
-        "operationId": "connect",
+        "operationId": "mailConnect",
         "responses": {
           "200": {
             "content": {
@@ -1864,7 +2420,7 @@
     },
     "/api/v1/mail/message": {
       "get": {
-        "operationId": "message",
+        "operationId": "mailMessage",
         "parameters": [
           {
             "in": "query",
@@ -2036,6 +2592,235 @@
         ]
       }
     },
+    "/api/v1/public-tokens": {
+      "get": {
+        "operationId": "listPublicTokens",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TokenInfo"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "public-token-controller"
+        ]
+      },
+      "post": {
+        "operationId": "createPublicToken",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewToken"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "public-token-controller"
+        ]
+      }
+    },
+    "/api/v1/public-tokens/{id}": {
+      "delete": {
+        "operationId": "revoke",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {},
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "public-token-controller"
+        ]
+      }
+    },
+    "/api/v1/public/analyze": {
+      "post": {
+        "operationId": "publicAnalyze",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyzeResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "public-controller"
+        ]
+      }
+    },
+    "/api/v1/public/events": {
+      "post": {
+        "operationId": "publicEvent",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "public-controller"
+        ]
+      }
+    },
+    "/api/v1/public/projects": {
+      "get": {
+        "operationId": "publicProjects",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PublicProject"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "public-controller"
+        ]
+      }
+    },
+    "/api/v1/public/tasks": {
+      "post": {
+        "operationId": "publicTask",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MailTaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "public-controller"
+        ]
+      }
+    },
     "/api/v1/refs": {
       "get": {
         "operationId": "search",
@@ -2169,7 +2954,7 @@
     },
     "/api/v1/sources": {
       "get": {
-        "operationId": "list",
+        "operationId": "listSources",
         "responses": {
           "200": {
             "content": {

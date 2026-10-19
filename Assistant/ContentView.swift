@@ -20,7 +20,7 @@ struct ContentView: View {
                     Label("All tasks", systemImage: "list.bullet").tag(Destination.all)
                 }
                 Section("Projects") {
-                    ForEach(model.data.projects.filter { $0.state != .completed && $0.state != .canceled }, id: \.id) { p in
+                    ForEach(model.sidebarProjects, id: \.id) { p in
                         let open = model.data.tasks.filter { $0.projectId == p.id && !$0.closed }.count
                         HStack {
                             Circle().fill(Color(hex: p.color)).frame(width: 8, height: 8)

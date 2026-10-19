@@ -6,6 +6,7 @@ import OpenAPIURLSession
 typealias TaskItem = Components.Schemas.TaskResponse
 typealias Project = Components.Schemas.ProjectResponse
 typealias TaskLabel = Components.Schemas.LabelResponse
+typealias Initiative = Components.Schemas.InitiativeResponse
 typealias Due = Components.Schemas.DueDto
 typealias EventItem = Components.Schemas.EventOccurrence
 typealias RefItem = Components.Schemas.Ref
@@ -47,6 +48,7 @@ final class API: @unchecked Sendable {
     func tasks() async throws -> [TaskItem] { try await client.tasks(.init()).ok.body.json }
     func projects() async throws -> [Project] { try await client.projects().ok.body.json }
     func labels() async throws -> [TaskLabel] { try await client.labels().ok.body.json }
+    func initiatives() async throws -> [Initiative] { try await client.initiatives().ok.body.json }
 
     func create(_ req: Components.Schemas.CreateTaskRequest) async throws -> TaskItem {
         switch try await client.create(.init(body: .json(req))) {
@@ -62,7 +64,7 @@ final class API: @unchecked Sendable {
     }
 
     func createEvent(_ req: Components.Schemas.CreateEventRequest) async throws {
-        switch try await client.create_1(.init(body: .json(req))) {
+        switch try await client.createEvent(.init(body: .json(req))) {
         case .created: return
         case let .undocumented(code, payload): throw await problem(code, payload)
         }
@@ -72,7 +74,7 @@ final class API: @unchecked Sendable {
     func resolve(_ url: String) async throws -> RefItem { try await client.resolve(.init(query: .init(url: url))).ok.body.json }
 
     func analyze(text: String, attachmentIds: [String]) async throws -> [Proposal] {
-        switch try await client.analyze(.init(body: .json(.init(attachmentIds: attachmentIds, text: text)))) {
+        switch try await client.analyzeCapture(.init(body: .json(.init(attachmentIds: attachmentIds, text: text)))) {
         case let .ok(r): return try r.body.json.items
         case let .undocumented(code, payload): throw await problem(code, payload)
         }

@@ -8,6 +8,8 @@ struct Snapshot: Codable {
     var tasks: [TaskItem] = []
     var projects: [Project] = []
     var labels: [TaskLabel] = []
+    /** Optional so a copy saved before initiatives existed still loads. */
+    var initiatives: [Initiative]? = []
     var fetchedAt: Date?
 }
 
@@ -47,7 +49,8 @@ final class AppModel: ObservableObject {
             async let tasks = api.tasks()
             async let projects = api.projects()
             async let labels = api.labels()
-            data = Snapshot(tasks: try await tasks, projects: try await projects, labels: try await labels, fetchedAt: Date())
+            async let initiatives = api.initiatives()
+            data = Snapshot(tasks: try await tasks, projects: try await projects, labels: try await labels, initiatives: try await initiatives, fetchedAt: Date())
             error = nil
             if let raw = try? JSONEncoder().encode(data) { try? raw.write(to: cacheURL) }
             Reminders.schedule(data.tasks)
@@ -83,6 +86,14 @@ final class AppModel: ObservableObject {
     }
 
     func project(_ id: String?) -> Project? { data.projects.first { $0.id == id } }
+
+    /** Open projects for the sidebar: those in an active initiative, or in none (a finished semester's courses drop out). */
+    var sidebarProjects: [Project] {
+        let active = Set((data.initiatives ?? []).filter { $0.status == .active }.map(\.id))
+        return data.projects.filter { p in
+            p.state != .completed && p.state != .canceled && (p.initiativeIds.isEmpty || p.initiativeIds.contains { active.contains($0) })
+        }
+    }
 }
 
 /** Deadline reminders as local notifications: a day and an hour before; 9:00 the day before and on the day when there's no time. */
