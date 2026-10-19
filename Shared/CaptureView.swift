@@ -21,6 +21,8 @@ struct CaptureView: View {
     @State var images: [CapturedImage]
     /** A mail dropped from Apple Mail: its subject becomes the title, with a link back to it. */
     @State var mail: MailFile? = nil
+    /** In the app: takes it to send in the background (the panel closes at once). The Share extension sends it itself. */
+    var handOff: ((_ text: String, _ title: String, _ link: String?, _ images: [CapturedImage]) -> Void)? = nil
     var onDone: () -> Void
 
     @State private var mode = 0
@@ -161,12 +163,17 @@ struct CaptureView: View {
     }
 
     private func sendToTriage() async {
+        let source = mail.map { "Mail from \($0.from), subject \($0.subject):\n\n" } ?? ""
+        if let handOff {
+            handOff(source + text, mail?.subject ?? "", mail?.link, images)
+            onDone()
+            return
+        }
         busy = true
         error = nil
         defer { busy = false }
         do {
             let ids = try await uploadImages()
-            let source = mail.map { "Mail from \($0.from), subject \($0.subject):\n\n" } ?? ""
             try await api.submitTriage(text: source + text, attachmentIds: ids, title: mail?.subject ?? "", link: mail?.link)
             onDone()
         } catch { self.error = error.localizedDescription }
@@ -189,7 +196,6 @@ struct CaptureView: View {
                 text = text.isEmpty ? s : text + "\n" + s
             }
         }
-        if !images.isEmpty { mode = 1 }
     }
 }
 

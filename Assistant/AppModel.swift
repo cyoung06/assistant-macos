@@ -40,6 +40,8 @@ final class AppModel: ObservableObject {
     private init() {
         if let raw = try? Data(contentsOf: cacheURL), let s = try? JSONDecoder().decode(Snapshot.self, from: raw) { data = s }
         // Refresh every few minutes while running, so the menu bar and reminders stay current.
+        // Whatever was handed to Triage before a quit goes out now.
+        Task { @MainActor in TriageOutbox.shared.run() }
         Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in Task { @MainActor in await AppModel.shared.refresh() } }
     }
 

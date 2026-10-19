@@ -6,6 +6,7 @@ import SwiftUI
  */
 struct TriageView: View {
     @EnvironmentObject private var model: AppModel
+    @ObservedObject private var outbox = TriageOutbox.shared
     @Binding var selectedTask: String?
     @State private var selected: String?
     @State private var edits: [String: Edit] = [:]
@@ -26,7 +27,8 @@ struct TriageView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 10) {
-                if open.isEmpty && reading.isEmpty && failed.isEmpty {
+                ForEach(outbox.jobs) { j in OutboxCard(job: j) }
+                if open.isEmpty && reading.isEmpty && failed.isEmpty && outbox.jobs.isEmpty {
                     Text("All clear. Share a screenshot (⌥Space, the Share menu, or drop it here); the model reads it and suggests tasks here.")
                         .foregroundStyle(.secondary).padding(.vertical, 8)
                 }
@@ -58,7 +60,7 @@ struct TriageView: View {
             }
         }
         .dropDestination(for: Data.self) { items, _ in
-            Task { await sendImages(items) }
+            sendImages(items)
             return !items.isEmpty
         }
     }
@@ -125,15 +127,27 @@ struct TriageView: View {
         return .handled
     }
 
-    /** Images dropped on the list go to Triage. */
-    private func sendImages(_ items: [Data]) async {
-        do {
-            var ids: [String] = []
-            for data in items where NSImage(data: data) != nil { ids.append(try await model.api.upload(data, filename: "screenshot.png", mimeType: "image/png")) }
-            guard !ids.isEmpty else { return }
-            try await model.api.submitTriage(text: "", attachmentIds: ids)
-            await model.refreshTriage()
-        } catch { model.error = error.localizedDescription }
+    /** Images dropped on the list go to Triage, sent in the background. */
+    private func sendImages(_ items: [Data]) {
+        let images = items.filter { NSImage(data: $0) != nil }.map { CapturedImage(data: $0, name: "screenshot.png", mimeType: "image/png") }
+        if !images.isEmpty { TriageOutbox.shared.send(text: "", images: images) }
+    }
+}
+
+/** Handed to Triage, still on its way to the server. */
+private struct OutboxCard: View {
+    let job: TriageJob
+    var body: some View {
+        HStack(spacing: 8) {
+            ProgressView().controlSize(.small)
+            Text("SENDING").font(.caption2.bold()).foregroundStyle(.tertiary)
+            Text(job.title.isEmpty ? (job.images.isEmpty ? String(job.text.prefix(60)) : "\(job.images.count) screenshot\(job.images.count == 1 ? "" : "s")") : job.title).lineLimit(1)
+            if let e = job.error { Text("Retrying: \(e)").font(.caption).foregroundStyle(.orange).lineLimit(1) }
+            Spacer()
+            if job.error != nil { Button("Discard") { TriageOutbox.shared.discard(job.id) }.controlSize(.small) }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.secondary.opacity(0.25)))
     }
 }
 

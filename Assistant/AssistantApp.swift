@@ -96,7 +96,9 @@ final class CapturePanel {
         p.level = .floating
         p.hidesOnDeactivate = false
         p.isReleasedWhenClosed = false
-        p.contentView = NSHostingView(rootView: CaptureView(api: AppModel.shared.api, text: text, images: images, mail: mail) { [weak self] in
+        p.contentView = NSHostingView(rootView: CaptureView(api: AppModel.shared.api, text: text, images: images, mail: mail, handOff: { text, title, link, images in
+            TriageOutbox.shared.send(text: text, title: title, link: link, images: images)
+        }) { [weak self] in
             self?.panel?.close()
             Task { await AppModel.shared.refresh() }
         }.frame(minWidth: 480, minHeight: 200))
