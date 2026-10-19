@@ -34,6 +34,8 @@ struct CalendarView: View {
             case .month: MonthGrid(anchor: anchor, items: items, select: select) { anchor = $0; mode = .week }
             }
         }
+        // Swipe sideways (two fingers) to page; the month also pages with up/down scrolling, as the hours don't scroll there.
+        .modifier(ScrollPager(vertical: mode == .month, page: move))
         .background(GeometryReader { g in
             Color.clear
                 .onAppear { days = visibleDays(width: g.size.width - WeekGrid.axis) }
@@ -61,6 +63,72 @@ struct CalendarView: View {
         case .week: anchor = addDays(rangeStart(anchor, days: days), by * days)
         case .month: anchor = dayString(calendarKST.date(byAdding: .month, value: by, to: midnight(String(anchor.prefix(8)) + "01"))!)
         }
+    }
+}
+
+/**
+ * Pages on two-finger swipes (and mouse-wheel turns, when `vertical`) over the view: one page per
+ * gesture, however long it is. Other scrolling (the week's hours) passes through.
+ */
+private struct ScrollPager: ViewModifier {
+    let vertical: Bool
+    let page: (Int) -> Void
+
+    private final class Tracker {
+        var monitor: Any?
+        var frame = CGRect.zero
+        var total: CGFloat = 0
+        var fired = false
+        var lastWheel = Date.distantPast
+        /** Whether this gesture pages sideways; decided by its first movement. */
+        var sideways: Bool?
+        // The latest view's settings, as the monitor outlives the view value it was made in.
+        var vertical = false
+        var page: (Int) -> Void = { _ in }
+    }
+    @State private var tracker = Tracker()
+
+    func body(content: Content) -> some View {
+        tracker.vertical = vertical
+        tracker.page = page
+        return content
+            .background(GeometryReader { g in
+                Color.clear
+                    .onAppear { tracker.frame = g.frame(in: .global) }
+                    .onChange(of: g.frame(in: .global)) { _, f in tracker.frame = f }
+            })
+            .onAppear {
+                let t = tracker
+                t.monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { e in handle(e, t) ? nil : e }
+            }
+            .onDisappear { if let m = tracker.monitor { NSEvent.removeMonitor(m); tracker.monitor = nil } }
+    }
+
+    /** Whether the event was used for paging (and so shouldn't scroll anything). */
+    private func handle(_ e: NSEvent, _ t: Tracker) -> Bool {
+        guard let height = e.window?.contentView?.bounds.height,
+              t.frame.contains(CGPoint(x: e.locationInWindow.x, y: height - e.locationInWindow.y)) else { return false }
+        let dx = e.scrollingDeltaX, dy = e.scrollingDeltaY
+        if e.phase == .began || !e.hasPreciseScrollingDeltas { t.sideways = nil }
+        if t.sideways == nil && (dx != 0 || dy != 0) { t.sideways = abs(dx) > abs(dy) }
+        let sideways = t.sideways ?? false
+        guard sideways || t.vertical else { return false }
+        let delta = sideways ? dx : dy
+        if !e.hasPreciseScrollingDeltas {
+            // A mouse wheel: one page per turn, ignoring the rest of a quick spin.
+            guard delta != 0, Date().timeIntervalSince(t.lastWheel) > 0.35 else { return delta != 0 }
+            t.lastWheel = Date()
+            t.page(delta < 0 ? 1 : -1)
+            return true
+        }
+        if e.phase == .began { t.total = 0; t.fired = false }
+        if !e.momentumPhase.isEmpty { return t.fired }
+        t.total += delta
+        if !t.fired && abs(t.total) > 50 {
+            t.fired = true
+            t.page(t.total < 0 ? 1 : -1)
+        }
+        return true
     }
 }
 
