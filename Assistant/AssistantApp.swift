@@ -39,6 +39,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         MainActor.assumeIsolated { NoteEditorCheck.runIfAsked() }
     }
 
+    /**
+     * Quitting waits for the open note's save (what can't be written stays as the editor's draft,
+     * so a hung connection doesn't hold quitting for long).
+     */
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        MainActor.assumeIsolated {
+            guard NoteEditor.isOpen else { return .terminateNow }
+            Task { @MainActor in
+                _ = await withTaskGroup(of: Void.self) { group in
+                    group.addTask { _ = await NoteEditor.shared.flush() }
+                    group.addTask { try? await Task.sleep(for: .seconds(10)) }
+                    await group.next()
+                    group.cancelAll()
+                }
+                sender.reply(toApplicationShouldTerminate: true)
+            }
+            return .terminateLater
+        }
+    }
+
     /** Mails (from Apple Mail) and images dropped on the Dock icon open in Capture. */
     func application(_ application: NSApplication, open urls: [URL]) {
         let urls = urls.filter(\.isFileURL)

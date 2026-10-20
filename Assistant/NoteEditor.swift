@@ -43,12 +43,11 @@ final class NoteEditor: NSObject, ObservableObject, WKScriptMessageHandlerWithRe
         return view
     }()
 
+    /** Whether a note has been shown (so there may be something to save before quitting). */
+    static private(set) var isOpen = false
+
     private override init() {
         super.init()
-        // Saved before the app quits (a moment's wait at most).
-        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { NoteEditor.shared.flushBeforeQuitting() }
-        }
     }
 
     // ---- showing a note ----
@@ -62,6 +61,7 @@ final class NoteEditor: NSObject, ObservableObject, WKScriptMessageHandlerWithRe
         do {
             guard let read = try await api.driveRead(path) else { return }
             self.path = path
+            Self.isOpen = true
             etag = read.etag
             let note: [String: Any] = [
                 "path": path, "text": String(decoding: read.data, as: UTF8.self), "etag": read.etag ?? NSNull(),
@@ -75,10 +75,11 @@ final class NoteEditor: NSObject, ObservableObject, WKScriptMessageHandlerWithRe
         }
     }
 
-    /** Saves what's unsaved now. */
-    func flush() async {
-        guard ready, path != nil else { return }
-        _ = try? await webView.callAsyncJavaScript("await assistantEditor.flush()", arguments: [:], contentWorld: .page)
+    /** Saves what's unsaved now; true once it's all written (if not, the editor keeps it as a draft and offers it next time). */
+    @discardableResult
+    func flush() async -> Bool {
+        guard ready, path != nil else { return true }
+        return (try? await webView.callAsyncJavaScript("return await assistantEditor.flush()", arguments: [:], contentWorld: .page)) as? Bool ?? false
     }
 
     /** A newer version written elsewhere (another device, Finder): shown if nothing's being edited here. */
@@ -87,13 +88,6 @@ final class NoteEditor: NSObject, ObservableObject, WKScriptMessageHandlerWithRe
         guard let read = try? await api.driveRead(path, ifNoneMatch: etag), let newer = read.etag, newer != etag else { return }
         let note: [String: Any] = ["text": String(decoding: read.data, as: UTF8.self), "etag": newer]
         _ = try? await webView.callAsyncJavaScript("assistantEditor.reloadIfUnchanged(note)", arguments: ["note": note], contentWorld: .page)
-    }
-
-    private func flushBeforeQuitting() {
-        var done = false
-        Task { await flush(); done = true }
-        let until = Date().addingTimeInterval(2)
-        while !done && Date() < until { RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.05)) }
     }
 
     private func run(_ script: String) {
