@@ -63,8 +63,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     func application(_ application: NSApplication, open urls: [URL]) {
         let urls = urls.filter(\.isFileURL)
         guard !urls.isEmpty else { return }
-        if let mail = urls.lazy.filter({ $0.pathExtension.lowercased() == "eml" }).compactMap({ (try? Data(contentsOf: $0)).flatMap(MailFile.parse) }).first {
-            CapturePanel.shared.show(mail: mail)
+        if let eml = urls.first(where: { $0.pathExtension.lowercased() == "eml" }), let data = try? Data(contentsOf: eml) {
+            Task { @MainActor in
+                // Read by the server's MIME parser; if that fails, Capture opens with the error to see.
+                do { CapturePanel.shared.show(mail: try await AppModel.shared.api.parseMail(data)) } catch { CapturePanel.shared.show(text: "Couldn't read that mail: \(error.localizedDescription)") }
+            }
             return
         }
         let images = urls.compactMap { url -> CapturedImage? in

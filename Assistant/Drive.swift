@@ -1,5 +1,6 @@
 import AppKit
 import CryptoKit
+import NetFS
 import Foundation
 import UniformTypeIdentifiers
 
@@ -22,6 +23,12 @@ private struct DriveFolderResponse: Decodable {
 }
 
 /** The drive, through the API (it reaches the WebDAV server for us). */
+struct DriveInfo: Decodable {
+    let enabled: Bool
+    let url: String
+    let username: String
+}
+
 extension API {
     func driveURL(_ endpoint: String, _ query: [String: String] = [:]) -> URL {
         var c = URLComponents(url: base.appending(path: "api/v1/drive" + endpoint), resolvingAgainstBaseURL: false)!
@@ -33,6 +40,11 @@ extension API {
 
     func driveFileURL(_ path: String) -> URL { driveURL("/file", ["path": path]) }
     func driveThumbURL(_ e: DriveEntry, width: Int = 240) -> URL { driveURL("/thumb", ["path": e.path, "version": e.modified ?? "", "width": String(width)]) }
+
+    /** Where devices reach the drive over WebDAV (Finder's Connect to Server), and as whom. */
+    func driveInfo() async throws -> DriveInfo {
+        try JSONDecoder().decode(DriveInfo.self, from: try await drive("GET", ""))
+    }
 
     func driveFolder(_ path: String) async throws -> [DriveEntry] {
         try JSONDecoder().decode(DriveFolderResponse.self, from: try await drive("GET", "/folder", ["path": path])).entries
@@ -355,9 +367,18 @@ final class DriveStore: ObservableObject {
         }
     }
 
-    /** Opens a copy in the app that handles it. */
+    /**
+     * Opens [e] in the app that handles it, from the drive mounted as a volume (WebDAV, as Finder's
+     * Connect to Server does): what that app saves goes to the drive. The system asks for the
+     * password the first time (and can keep it in the keychain).
+     */
     func openExternally(_ e: DriveEntry) async {
-        do { NSWorkspace.shared.open(try await local(e)) } catch { self.error = error.localizedDescription }
+        do {
+            let volume = try await DriveVolume.mounted(try await api.driveInfo())
+            NSWorkspace.shared.open(volume.appending(path: e.path))
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
     /** What a drag of [e] carries: its path (for here) and, for files, the file itself (for Finder and other apps). */
@@ -398,5 +419,34 @@ final class DriveStore: ObservableObject {
             }
         }
         return true
+    }
+}
+
+/** The drive as a mounted volume (macOS's own WebDAV client). */
+enum DriveVolume {
+    /** Where the drive at [info]'s address is mounted: an existing mount, or a new one. */
+    static func mounted(_ info: DriveInfo) async throws -> URL {
+        guard info.enabled, let url = URL(string: info.url), let host = url.host else { throw APIError(message: "The drive isn't set up on the server") }
+        let volumes = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: [.volumeURLForRemountingKey], options: [.skipHiddenVolumes]) ?? []
+        if let existing = volumes.first(where: { (try? $0.resourceValues(forKeys: [.volumeURLForRemountingKey]))?.volumeURLForRemounting?.host == host }) {
+            return existing
+        }
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
+            // Answered once, whether the call fails at once or its completion reports.
+            var answered = false
+            let done = { (result: Result<URL, Error>) in
+                guard !answered else { return }
+                answered = true
+                continuation.resume(with: result)
+            }
+            var request: AsyncRequestID?
+            // The system's own sign-in sheet (and keychain) for the password.
+            let open = NSMutableDictionary(dictionary: [kNAUIOptionKey: kNAUIOptionAllowUI])
+            let status = NetFSMountURLAsync(url as CFURL, nil, info.username as CFString, nil, open, nil, &request, .main) { status, _, mounts in
+                if status == 0, let path = (mounts as? [String])?.first { done(.success(URL(fileURLWithPath: path, isDirectory: true))) }
+                else { done(.failure(APIError(message: "Couldn't connect to the drive (\(status))"))) }
+            }
+            if status != 0 { done(.failure(APIError(message: "Couldn't connect to the drive (\(status))"))) }
+        }
     }
 }

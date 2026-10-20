@@ -103,6 +103,16 @@ final class API: @unchecked Sendable {
         }
     }
 
+    /** A mail file (.eml) read by the server's MIME parser: its headers decoded and its plain text. */
+    func parseMail(_ data: Data) async throws -> MailFile {
+        switch try await client.mailParse(.init(body: .message_rfc822(HTTPBody(data)))) {
+        case let .ok(ok):
+            let m = try ok.body.json
+            return MailFile(subject: m.subject, from: m.from, messageId: m.messageId, text: m.text)
+        case let .undocumented(code, payload): throw await problem(code, payload)
+        }
+    }
+
     /** JSON merge patch of a task; NSNull clears a field. */
     func patchTask(_ id: String, _ patch: [String: Any]) async throws {
         try await send("PATCH", "api/v1/tasks/\(id)", body: try JSONSerialization.data(withJSONObject: patch), type: "application/json")

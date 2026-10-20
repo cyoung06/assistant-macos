@@ -93,7 +93,6 @@ struct ContentView: View {
 
     @discardableResult
     private func openAppLink(_ url: String) -> Bool {
-        if let u = URL(string: url), TriageOutbox.shared.receive(u) { return true }
         if let target = externalTarget(url) { NSWorkspace.shared.open(target); return true }
         // Our pages: "<origin>/task/<id>", or "#task/<id>" in older text.
         if let m = url.firstMatch(of: /[\/#]task\/([0-9a-f-]{36})/) { selected = String(m.output.1); return true }

@@ -21,6 +21,8 @@ struct CaptureView: View {
     @State var images: [CapturedImage]
     /** A mail dropped from Apple Mail: its subject becomes the title, with a link back to it. */
     @State var mail: MailFile? = nil
+    /** What was shared (the Share extension's items), read as a drop is. */
+    var shared: [NSItemProvider] = []
     /** Takes it to send in the background, so the panel closes at once; false sends it here instead (the app couldn't be reached). */
     var handOff: ((_ text: String, _ title: String, _ link: String?, _ images: [CapturedImage]) -> Bool)? = nil
     var onDone: () -> Void
@@ -70,6 +72,7 @@ struct CaptureView: View {
         .onPasteCommand(of: [.image, .png, .tiff, .text, .url]) { providers in Task { await take(providers) } }
         .task {
             projects = (try? await api.projects()) ?? []
+            if !shared.isEmpty { await take(shared) }
             if let mail { useMail(mail) } else if title.isEmpty { await prefill() }
             if !images.isEmpty { mode = 1 }
         }
@@ -182,9 +185,13 @@ struct CaptureView: View {
 
     private func take(_ providers: [NSItemProvider]) async {
         for p in providers {
-            if p.hasItemConformingToTypeIdentifier(UTType.emailMessage.identifier), let data = try? await p.loadFile(.emailMessage), let m = MailFile.parse(data) {
-                useMail(m)
-                mode = 0
+            if p.hasItemConformingToTypeIdentifier(UTType.emailMessage.identifier), let data = try? await p.loadFile(.emailMessage) {
+                do {
+                    useMail(try await api.parseMail(data))
+                    mode = 0
+                } catch {
+                    self.error = "Couldn't read that mail: \(error.localizedDescription)"
+                }
                 return
             } else if p.hasItemConformingToTypeIdentifier(UTType.image.identifier), let data = await p.imageData() {
                 images.append(CapturedImage(data: data, name: "screenshot.png", mimeType: "image/png"))

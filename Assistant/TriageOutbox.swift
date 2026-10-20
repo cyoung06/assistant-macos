@@ -56,16 +56,6 @@ final class TriageOutbox: ObservableObject {
         run()
     }
 
-    /** An `assistant-handoff:` link from the Share extension: queues what it put on the pasteboard. */
-    @discardableResult
-    func receive(_ url: URL) -> Bool {
-        guard url.scheme == Handoff.scheme else { return false }
-        if let p = Handoff.take(url) {
-            send(text: p.text, title: p.title, link: p.link, images: zip(p.images, p.mimeTypes).map { CapturedImage(data: $0, name: "shared.png", mimeType: $1) })
-        }
-        return true
-    }
-
     func discard(_ id: UUID) {
         jobs.removeAll { $0.id == id }
         try? FileManager.default.removeItem(at: dir.appending(path: id.uuidString))

@@ -64,14 +64,6 @@
 				<string>plms</string>
 			</array>
 		</dict>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>Share hand-off</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>assistant-handoff</string>
-			</array>
-		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>

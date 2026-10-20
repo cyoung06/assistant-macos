@@ -26,10 +26,8 @@
 		8A19FD64B6D06565C64EF09C /* FilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B27157EBD084D06228785EE4 /* FilesView.swift */; };
 		906F8613B45C1F646B9A61D3 /* API.swift in Sources */ = {isa = PBXBuildFile; fileRef = A27A7455F4599C3FDD1DDD5F /* API.swift */; };
 		A368B955C8B40A3AAF03A45C /* TaskDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59D09BDF66A0DB53A2E52B9B /* TaskDetailView.swift */; };
-		A444F2F25FFB8000F965A2DE /* Handoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17AE8BF93BC9E8D3AD8C73DC /* Handoff.swift */; };
 		AA8A3E7C908EEA6767099A43 /* MailFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BC6777FEBE104BF6927EF4 /* MailFile.swift */; };
 		ADFA4E86F48C3744FE84080C /* AssistantAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 08F2C8743D1A0E889E78BFA2 /* AssistantAPI */; };
-		B3CCF70F25C8F7D688B6B771 /* Handoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17AE8BF93BC9E8D3AD8C73DC /* Handoff.swift */; };
 		B90E5D7EE553D3D99C799B39 /* CalendarLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 907C5C215991FDCCB2EDF98F /* CalendarLayout.swift */; };
 		BD35756996671FFFCE005A10 /* Editor in Resources */ = {isa = PBXBuildFile; fileRef = 01654DFEA6C381FCCFD510C0 /* Editor */; };
 		C60E362C5D9BBDBD272D3A78 /* NoteEditorCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC7A44C26FCDF2538EBD0A9 /* NoteEditorCheck.swift */; };
@@ -70,7 +68,6 @@
 		0A1A4B8C0DF6503075DECD0D /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A20A9483B2B64425BF1A36D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		10E0E631AA38C1EC342C8804 /* AssistantAPI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AssistantAPI; path = Packages/AssistantAPI; sourceTree = SOURCE_ROOT; };
-		17AE8BF93BC9E8D3AD8C73DC /* Handoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Handoff.swift; sourceTree = "<group>"; };
 		24C0D77C4D7EB6417F566FDF /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		53058ED33125BBC098EFAC5B /* EventEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEditor.swift; sourceTree = "<group>"; };
 		576ED3440CE0DE6BAB9FA2E6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -142,7 +139,6 @@
 			children = (
 				A27A7455F4599C3FDD1DDD5F /* API.swift */,
 				DA78FB333562EB6EDBDC451C /* CaptureView.swift */,
-				17AE8BF93BC9E8D3AD8C73DC /* Handoff.swift */,
 				B0BC6777FEBE104BF6927EF4 /* MailFile.swift */,
 				BF9813F4655E59F5FA7A519F /* Tasks.swift */,
 			);
@@ -298,7 +294,6 @@
 			files = (
 				0191788D155DCB3C316CC9D5 /* API.swift in Sources */,
 				0255F789E9B3D80E16EC879B /* CaptureView.swift in Sources */,
-				A444F2F25FFB8000F965A2DE /* Handoff.swift in Sources */,
 				AA8A3E7C908EEA6767099A43 /* MailFile.swift in Sources */,
 				48F709E60DF5DFCBE3C863C4 /* ShareViewController.swift in Sources */,
 				F20AAB693376F89ABD13E911 /* Tasks.swift in Sources */,
@@ -319,7 +314,6 @@
 				1B6838C956F8063CC2153380 /* Drive.swift in Sources */,
 				33BE591F4DBF41FEB719E955 /* EventEditor.swift in Sources */,
 				8A19FD64B6D06565C64EF09C /* FilesView.swift in Sources */,
-				B3CCF70F25C8F7D688B6B771 /* Handoff.swift in Sources */,
 				FBE5249ABA34837DB5971E8F /* InitiativesView.swift in Sources */,
 				E3E30A52CF0A457957CDF189 /* MailFile.swift in Sources */,
 				880089C802722D49711D48C8 /* MenuBarView.swift in Sources */,
