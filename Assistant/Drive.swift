@@ -50,12 +50,43 @@ extension API {
         try FileManager.default.moveItem(at: tmp, to: dest)
     }
 
-    func driveUpload(_ path: String, from file: URL) async throws {
+    /** Uploads [file] to [path] if there's nothing there (If-None-Match: *); false if there is. */
+    func driveUpload(_ path: String, from file: URL) async throws -> Bool {
         var req = URLRequest(url: driveFileURL(path))
         req.httpMethod = "PUT"
         req.setValue(UTType(filenameExtension: file.pathExtension)?.preferredMIMEType ?? "application/octet-stream", forHTTPHeaderField: "Content-Type")
+        req.setValue("*", forHTTPHeaderField: "If-None-Match")
         let (data, response) = try await URLSession.shared.upload(for: req, fromFile: file)
+        if (response as? HTTPURLResponse)?.statusCode == 412 { return false }
         try check(response, data)
+        return true
+    }
+
+    /** Writes [data] to [path] if there's nothing there (If-None-Match: *); false if there is. */
+    func driveWriteNew(_ path: String, _ data: Data, type: String) async throws -> Bool {
+        var req = URLRequest(url: driveFileURL(path))
+        req.httpMethod = "PUT"
+        req.setValue(type, forHTTPHeaderField: "Content-Type")
+        req.setValue("*", forHTTPHeaderField: "If-None-Match")
+        let (out, response) = try await URLSession.shared.upload(for: req, from: data)
+        if (response as? HTTPURLResponse)?.statusCode == 412 { return false }
+        try check(response, out)
+        return true
+    }
+
+    /**
+     * A new file at [path], or "stem (2).ext" and so on if that's taken, never over a file that's
+     * there: [put] writes it to the path it's given, false if something's there (the next name is
+     * tried). Where it went.
+     */
+    func driveCreate(_ path: String, _ put: (String) async throws -> Bool) async throws -> String {
+        let folder = driveParent(path), name = (path as NSString).lastPathComponent
+        let stem = (name as NSString).deletingPathExtension, ext = (name as NSString).pathExtension
+        for n in 1...100 {
+            let at = folder + (n == 1 ? name : ext.isEmpty ? "\(stem) (\(n))" : "\(stem) (\(n)).\(ext)")
+            if try await put(at) { return at }
+        }
+        throw APIError(message: "No free name for \(name)")
     }
 
     func driveWrite(_ path: String, _ data: Data, type: String) async throws { try await drive("PUT", "/file", ["path": path], body: data, type: type) }
@@ -96,16 +127,6 @@ extension API {
         // Older servers don't say: the listing does.
         let listed = try? await driveFolder(driveParent(path)).first { $0.path == path }
         return DriveWritten(etag: listed?.etag.map(strongETag))
-    }
-
-    /** [name] in [folder], or "stem (2).ext" and so on if that's taken. */
-    func driveFreeName(_ name: String, in folder: String) async -> String {
-        let taken = Set(((try? await driveFolder(folder)) ?? []).map(\.name))
-        let stem = (name as NSString).deletingPathExtension, ext = (name as NSString).pathExtension
-        var free = name
-        var n = 2
-        while taken.contains(free) { free = ext.isEmpty ? "\(stem) (\(n))" : "\(stem) (\(n)).\(ext)"; n += 1 }
-        return free
     }
 
     @discardableResult
@@ -287,16 +308,11 @@ final class DriveStore: ObservableObject {
 
     /** A new, empty Markdown file in [folder] ("Untitled.md", numbered if taken); its path. */
     func newMarkdown(in folder: String) async -> String? {
-        let taken = Set((children[folder] ?? []).map(\.name))
-        var name = "Untitled.md"
-        var n = 2
-        while taken.contains(name) { name = "Untitled \(n).md"; n += 1 }
-        let path = folder + name
-        var ok = true
+        var made: String?
         await run([folder]) {
-            do { try await api.driveWrite(path, Data(), type: "text/markdown") } catch { ok = false; throw error }
+            made = try await api.driveCreate(folder + "Untitled.md") { try await api.driveWriteNew($0, Data(), type: "text/markdown; charset=utf-8") }
         }
-        return ok ? path : nil
+        return made
     }
 
     /** Uploads files (and folders, with what's in them) from this Mac into [folder]. */
@@ -305,8 +321,9 @@ final class DriveStore: ObservableObject {
         await run([folder]) {
             for url in urls {
                 let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+                // Numbered if the name's taken: never over a file that's there.
                 if !isDir {
-                    try await api.driveUpload(folder + url.lastPathComponent, from: url)
+                    try await api.driveCreate(folder + url.lastPathComponent) { try await api.driveUpload($0, from: url) }
                     continue
                 }
                 let base = url.deletingLastPathComponent().path + "/"
@@ -314,7 +331,7 @@ final class DriveStore: ObservableObject {
                 let files = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles])
                 while let f = files?.nextObject() as? URL {
                     guard (try? f.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true else { continue }
-                    try await api.driveUpload(folder + f.path.dropFirst(base.count), from: f)
+                    try await api.driveCreate(folder + f.path.dropFirst(base.count)) { try await api.driveUpload($0, from: f) }
                 }
             }
         }

@@ -98,6 +98,8 @@ final class NoteEditor: NSObject, ObservableObject, WKScriptMessageHandlerWithRe
     // ---- what the page asks ----
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage, replyHandler: @escaping @MainActor @Sendable (Any?, String?) -> Void) {
+        // From the editor's own page only (bundled in the app), not from anything framed in a note.
+        guard message.frameInfo.isMainFrame, message.frameInfo.securityOrigin.protocol == "file" else { return replyHandler(nil, "Not the editor") }
         guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return replyHandler(nil, "Not understood") }
         let payload = body["payload"] as? [String: Any] ?? [:]
         guard body["id"] != nil else {
@@ -114,6 +116,8 @@ final class NoteEditor: NSObject, ObservableObject, WKScriptMessageHandlerWithRe
         let path = p["path"] as? String ?? ""
         switch type {
         case "save":
+            // Only the note that's open here, and not one kept as PLMS has it.
+            guard path == self.path, !driveReadOnly(path) else { throw APIError(message: "Not the note that's open") }
             let force = p["force"] as? Bool ?? false
             let text = p["text"] as? String ?? ""
             // An empty note is a newline (older servers refuse empty bodies).
@@ -130,18 +134,18 @@ final class NoteEditor: NSObject, ObservableObject, WKScriptMessageHandlerWithRe
             let name = (path as NSString).lastPathComponent
             let copy = ((name as NSString).deletingPathExtension) + " (my copy)" + ((name as NSString).pathExtension.isEmpty ? "" : "." + (name as NSString).pathExtension)
             let folder = driveParent(path)
-            let free = await api.driveFreeName(copy, in: folder)
-            let text = p["text"] as? String ?? ""
-            try await api.driveWrite(folder + free, Data((text.isEmpty ? "\n" : text).utf8), type: "text/markdown; charset=utf-8")
+            let typed = p["text"] as? String ?? ""
+            let text = Data((typed.isEmpty ? "\n" : typed).utf8)
+            let made = try await api.driveCreate(folder + copy) { try await api.driveWriteNew($0, text, type: "text/markdown; charset=utf-8") }
             Task { await DriveStore.shared.load(folder) }
-            return ["name": free]
+            return ["name": (made as NSString).lastPathComponent]
         case "uploadImage":
             guard let notePath = p["notePath"] as? String, let data = Data(base64Encoded: p["base64"] as? String ?? "") else { throw APIError(message: "No image") }
             let folder = driveParent(notePath) + "attachments/"
-            let name = await api.driveFreeName((p["name"] as? String ?? "image.png").replacingOccurrences(of: "/", with: " "), in: folder)
-            try await api.driveWrite(folder + name, data, type: p["mimeType"] as? String ?? "application/octet-stream")
+            let wanted = (p["name"] as? String ?? "image.png").replacingOccurrences(of: "/", with: " ")
+            let made = try await api.driveCreate(folder + wanted) { try await api.driveWriteNew($0, data, type: p["mimeType"] as? String ?? "application/octet-stream") }
             Task { await DriveStore.shared.load(folder) }
-            return ["relativePath": "attachments/" + uriComponent(name)]
+            return ["relativePath": "attachments/" + uriComponent((made as NSString).lastPathComponent)]
         case "readImage":
             guard let read = try await api.driveRead(path) else { throw APIError(message: "Couldn't read \(path)") }
             let type = read.type ?? UTType(filenameExtension: (path as NSString).pathExtension)?.preferredMIMEType ?? "application/octet-stream"
@@ -166,7 +170,8 @@ final class NoteEditor: NSObject, ObservableObject, WKScriptMessageHandlerWithRe
         case "openLink":
             if let path = p["resolvedPath"] as? String {
                 NotificationCenter.default.post(name: .driveReveal, object: path)
-            } else if let href = p["href"] as? String, let url = URL(string: href) {
+            } else if let href = p["href"] as? String, let url = URL(string: href), ["http", "https", "mailto"].contains(url.scheme?.lowercased() ?? "") {
+                // The web and mail only: no file:// or app schemes from a note.
                 NSWorkspace.shared.open(url)
             }
         default:
