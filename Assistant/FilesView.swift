@@ -363,6 +363,8 @@ struct FilePreview: View {
     @State private var pdf: PDFDocument?
     @State private var player: AVPlayer?
     @State private var failed: String?
+    /** A PDF written on here, live (see NotebookView). */
+    @State private var writing = false
 
     private var kind: DriveKind { driveKind(entry.name, folder: false) }
 
@@ -374,6 +376,10 @@ struct FilePreview: View {
                 Text(driveSize(entry.size)).font(.caption).foregroundStyle(.secondary)
                 if driveReadOnly(entry.path) { Text("From PLMS · read-only").font(.caption).foregroundStyle(.secondary) }
                 Spacer()
+                if kind == .pdf && !driveReadOnly(entry.path) {
+                    Button(writing ? "Done" : "Write on It") { writing.toggle() }
+                        .help(writing ? "Back to the PDF" : "Write on it with a pen, live with your other devices")
+                }
                 Button("Open") { Task { await store.openExternally(entry) } }
                 Button("Download") { Task { await store.saveToDownloads(entry) } }
             }
@@ -387,7 +393,9 @@ struct FilePreview: View {
     }
 
     @ViewBuilder private var content: some View {
-        if let failed {
+        if kind == .pdf && writing {
+            NotebookView(path: entry.path).id(entry.path)
+        } else if let failed {
             Text("Couldn't open this: \(failed)").foregroundStyle(.secondary)
         } else if let player {
             VideoPlayer(player: player)
@@ -426,7 +434,7 @@ struct FilePreview: View {
     }
 
     private func load() async {
-        file = nil; text = nil; image = nil; pdf = nil; failed = nil
+        file = nil; text = nil; image = nil; pdf = nil; failed = nil; writing = false
         player?.pause(); player = nil
         // Video and audio play as they arrive (the drive serves ranges): not downloaded first.
         if kind == .video || kind == .audio {

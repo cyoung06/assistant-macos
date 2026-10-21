@@ -41,7 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         UNUserNotificationCenter.current().delegate = self
         Reminders.requestPermission()
         HotKey.register()
-        MainActor.assumeIsolated { NoteEditorCheck.runIfAsked() }
+        MainActor.assumeIsolated { NoteEditorCheck.runIfAsked(); NotebookCheck.runIfAsked() }
     }
 
     /** Quitting lets the open note go first (a moment, for what was just typed to go out). */
