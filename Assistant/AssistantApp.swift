@@ -19,6 +19,11 @@ struct AssistantApp: App {
             }
         }
 
+        // A note in a window of its own (Files' "Open in New Window"): to keep beside another note, or a PDF.
+        WindowGroup("Note", id: "note", for: String.self) { $path in
+            if let path { NoteView(path: path, windowed: true).environmentObject(model).frame(minWidth: 480, minHeight: 400) }
+        }
+
         MenuBarExtra {
             MenuBarView().environmentObject(model)
         } label: {
@@ -42,10 +47,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /** Quitting lets the open note go first (a moment, for what was just typed to go out). */
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         MainActor.assumeIsolated {
-            guard NoteEditor.isOpen else { return .terminateNow }
+            let editors = NoteEditor.open.allObjects
+            guard !editors.isEmpty else { return .terminateNow }
             Task { @MainActor in
                 _ = await withTaskGroup(of: Void.self) { group in
-                    group.addTask { await NoteEditor.shared.close() }
+                    group.addTask { for e in editors { await e.close() } }
                     group.addTask { try? await Task.sleep(for: .seconds(10)) }
                     await group.next()
                     group.cancelAll()

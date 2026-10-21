@@ -25,7 +25,7 @@ enum NoteEditorCheck {
 
     private static func run() async -> Bool {
         let api = AppModel.shared.api
-        let editor = NoteEditor.shared
+        let editor = NoteEditor()
         let folder = "Projects/No project/"
         let path = folder + "zz-mac-editor-test.md"
         var ok = true

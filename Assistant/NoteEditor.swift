@@ -15,7 +15,8 @@ extension Notification.Name {
  */
 @MainActor
 final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate, NSTextStorageDelegate {
-    static let shared = NoteEditor()
+    /** The editors open now (one per note shown: in Files, or in a window of its own). */
+    static let open = NSHashTable<NoteEditor>.weakObjects()
 
     /** How the note is: loading, live, connecting, offline, error, readonly. */
     @Published private(set) var state = "loading"
@@ -24,9 +25,6 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate, NSTextSt
     @Published var source = false { didSet { restyle(structure: false) } }
     /** Being edited (asked for: a note opens as a preview). */
     @Published private(set) var editing = false
-
-    /** Whether a note has been shown (so there may be something to save before quitting). */
-    static private(set) var isOpen = false
 
     private(set) var path: String?
     private var document: NoteDocument?
@@ -67,15 +65,16 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate, NSTextSt
         scroll.documentView = textView
         scroll.drawsBackground = false
         NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: scroll, queue: .main) { _ in
-            MainActor.assumeIsolated { NoteEditor.shared.fit() }
+            MainActor.assumeIsolated { [weak self] in self?.fit() }
         }
         scroll.postsFrameChangedNotifications = true
         return scroll
     }()
 
-    private override init() {
+    override init() {
         super.init()
         NoteCore.registerFonts()
+        Self.open.add(self)
     }
 
     /** The text column: at most as wide as the web's, centred, with room below the last line. */
@@ -97,7 +96,6 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate, NSTextSt
         guard path != self.path else { return }
         await document?.close()
         self.path = path
-        Self.isOpen = true
         _ = textView
         storage.delegate = self
         setEditing(false)
@@ -338,9 +336,12 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate, NSTextSt
 
     // ---- what the screen asks ----
 
-    /** Lets the note go (quitting, or the window closing). */
+    /** Lets the note go (quitting, or its view going away); opened again, it connects again. */
     func close() async {
-        await document?.close()
+        let closing = document
+        document = nil
+        path = nil
+        await closing?.close()
     }
 
     /** The text as it is (for checks). */
@@ -422,49 +423,58 @@ final class NoteTextView: NSTextView {
 
 /** The editor's scroll view, wherever a note is shown. */
 private struct NoteTextHost: NSViewRepresentable {
+    let editor: NoteEditor
+
     func makeNSView(context: Context) -> NSScrollView {
-        let view = NoteEditor.shared.scrollView
+        let view = editor.scrollView
         view.removeFromSuperview()
-        DispatchQueue.main.async { NoteEditor.shared.appearanceChanged() }
+        DispatchQueue.main.async { editor.appearanceChanged() }
         return view
     }
 
     func updateNSView(_ view: NSScrollView, context: Context) {}
-
-    static func dismantleNSView(_ view: NSScrollView, coordinator: ()) {
-        // Leaving the note (Files closed): let go of it (another note opening does that itself).
-        Task { @MainActor in await NoteEditor.shared.close() }
-    }
 }
 
-/** A Markdown note in Files: a preview, Edit to write in it, its save state, a source switch. */
+/**
+ * A Markdown note (in Files, or in a window of its own): a preview, Edit to write in it, whether
+ * it's live, a source switch.
+ */
 struct NoteView: View {
-    let entry: DriveEntry
-    @ObservedObject private var editor = NoteEditor.shared
+    let path: String
+    @StateObject private var editor = NoteEditor()
     @ObservedObject private var store = DriveStore.shared
+    @Environment(\.openWindow) private var openWindow
+    /** In a window of its own (no "open in a new window" there). */
+    var windowed = false
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: driveIcon(.markdown)).foregroundStyle(.secondary)
-                Text(entry.name).font(.headline).lineLimit(1).truncationMode(.middle)
+                Text((path as NSString).lastPathComponent).font(.headline).lineLimit(1).truncationMode(.middle)
                 Text(statusText).font(.caption).foregroundStyle(editor.state == "error" || editor.state == "offline" ? .red : .secondary)
                 Spacer()
                 Toggle("Source", isOn: $editor.source).toggleStyle(.button).help("Show the Markdown as written")
-                if !driveReadOnly(entry.path) && editor.state != "loading" {
+                if !driveReadOnly(path) && editor.state != "loading" {
                     if editor.editing {
                         Button("Done") { editor.setEditing(false) }.keyboardShortcut(.return, modifiers: .command)
                     } else {
                         Button { editor.setEditing(true) } label: { Label("Edit", systemImage: "pencil") }.keyboardShortcut("e", modifiers: .command)
                     }
                 }
-                Button("Open") { Task { await store.openExternally(entry) } }
+                if !windowed {
+                    Button { openWindow(id: "note", value: path) } label: { Label("Open in New Window", systemImage: "macwindow.badge.plus") }
+                        .labelStyle(.iconOnly).help("Open in a window of its own (to keep beside another)")
+                }
+                if let e = store.entries[path] { Button("Open") { Task { await store.openExternally(e) } } }
             }
             .padding(10)
             Divider()
-            NoteTextHost().frame(maxWidth: .infinity, maxHeight: .infinity)
+            NoteTextHost(editor: editor).frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .task(id: entry.path) { await editor.open(entry.path) }
+        .task(id: path) { await editor.open(path) }
+        // Leaving the note (another file, Files or the window closed): let go of it.
+        .onDisappear { Task { await editor.close() } }
     }
 
     private var statusText: String {

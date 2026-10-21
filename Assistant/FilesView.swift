@@ -26,6 +26,7 @@ struct FilesView: View {
 
     @EnvironmentObject private var model: AppModel
     @ObservedObject private var store = DriveStore.shared
+    @Environment(\.openWindow) private var openWindow
     @State private var selection: String?
     @State private var renaming: DriveEntry?
     @State private var newName = ""
@@ -171,7 +172,7 @@ struct FilesView: View {
 
     @ViewBuilder private var preview: some View {
         if let e = selected, !e.folder, driveKind(e.name, folder: false) == .markdown {
-            NoteView(entry: e)
+            NoteView(path: e.path)
         } else if let e = selected, !e.folder {
             FilePreview(entry: e)
         } else {
@@ -230,6 +231,7 @@ struct FilesView: View {
         if let e {
             if !e.folder {
                 Button("Open") { Task { await store.openExternally(e) } }
+                if driveKind(e.name, folder: false) == .markdown { Button("Open in New Window") { openWindow(id: "note", value: e.path) } }
                 Button("Download to Downloads") { Task { await store.saveToDownloads(e) } }
                 Divider()
             }
