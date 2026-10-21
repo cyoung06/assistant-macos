@@ -230,36 +230,36 @@ struct FilesView: View {
         let target = e.map { $0.folder ? $0.path : driveParent($0.path) } ?? folder
         if let e {
             if !e.folder {
-                Button("Open") { Task { await store.openExternally(e) } }
-                if driveKind(e.name, folder: false) == .markdown { Button("Open in New Window") { openWindow(id: "note", value: e.path) } }
-                Button("Download to Downloads") { Task { await store.saveToDownloads(e) } }
+                Button("Open", systemImage: "arrow.up.forward.app") { Task { await store.openExternally(e) } }
+                if driveKind(e.name, folder: false) == .markdown { Button("Open in New Window", systemImage: "macwindow.badge.plus") { openWindow(id: "note", value: e.path) } }
+                Button("Download to Downloads", systemImage: "arrow.down.circle") { Task { await store.saveToDownloads(e) } }
                 Divider()
             }
-            Button("Copy") { store.clip = (e.path, false) }
-            if !driveFixed(e.path) { Button("Cut") { store.clip = (e.path, true) } }
+            Button("Copy", systemImage: "doc.on.doc") { store.clip = (e.path, false) }
+            if !driveFixed(e.path) { Button("Cut", systemImage: "scissors") { store.clip = (e.path, true) } }
         }
         if let clip = store.clip, !driveReadOnly(target) {
-            Button("Paste “\(clip.path.split(separator: "/").last ?? "")”") { Task { await store.paste(into: target) } }
+            Button("Paste “\(clip.path.split(separator: "/").last ?? "")”", systemImage: "doc.on.clipboard") { Task { await store.paste(into: target) } }
         }
         if let e, !driveReadOnly(driveParent(e.path)), !(e.path.hasPrefix("Projects/") && e.path.split(separator: "/").count <= 2) {
-            Button("Duplicate") { Task { await store.duplicate(e) } }
+            Button("Duplicate", systemImage: "plus.square.on.square") { Task { await store.duplicate(e) } }
         }
         if !driveReadOnly(target) {
             Divider()
-            Button("New Folder…") { newName = ""; naming = target }
-            Button("New Markdown File") { newMarkdown(in: target) }
-            Button("Upload…") { upload(into: target) }
+            Button("New Folder…", systemImage: "folder.badge.plus") { newName = ""; naming = target }
+            Button("New Markdown File", systemImage: "doc.badge.plus") { newMarkdown(in: target) }
+            Button("Upload…", systemImage: "arrow.up.doc") { upload(into: target) }
         }
         if let e {
             Divider()
-            Button("Copy Path") {
+            Button("Copy Path", systemImage: "link") {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(e.path, forType: .string)
             }
             if !driveFixed(e.path) {
                 Divider()
-                Button("Rename…") { newName = e.name; renaming = e }
-                Button("Delete…", role: .destructive) { deleting = e }
+                Button("Rename…", systemImage: "pencil") { newName = e.name; renaming = e }
+                Button("Delete…", systemImage: "trash", role: .destructive) { deleting = e }
             }
         }
     }
@@ -377,11 +377,10 @@ struct FilePreview: View {
                 if driveReadOnly(entry.path) { Text("From PLMS · read-only").font(.caption).foregroundStyle(.secondary) }
                 Spacer()
                 if kind == .pdf && !driveReadOnly(entry.path) {
-                    Button(writing ? "Done" : "Write on It") { writing.toggle() }
-                        .help(writing ? "Back to the PDF" : "Write on it with a pen, live with your other devices")
+                    IconToggle("Write on It (live with your other devices)", symbol: "pencil.and.scribble", isOn: $writing)
                 }
-                Button("Open") { Task { await store.openExternally(entry) } }
-                Button("Download") { Task { await store.saveToDownloads(entry) } }
+                IconButton("Open in Its App", symbol: "arrow.up.forward.app") { Task { await store.openExternally(entry) } }
+                IconButton("Download to Downloads", symbol: "arrow.down.circle") { Task { await store.saveToDownloads(entry) } }
             }
             .padding(10)
             Divider()

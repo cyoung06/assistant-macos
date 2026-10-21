@@ -18,70 +18,101 @@ struct NotebookView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Text(model.status).font(.caption).foregroundStyle(.secondary)
+            // The pages': where you are, bookmarks, adding and deleting.
+            HStack(spacing: 6) {
+                Circle().fill(model.status == "Live" ? Color.green : model.status.hasPrefix("Offline") || model.status.hasPrefix("Connecting") || model.status.hasPrefix("Opening") ? Color.orange : Color.red)
+                    .frame(width: 7, height: 7)
+                    .help(model.status)
+                if model.status != "Live" { Text(model.status).font(.caption).foregroundStyle(.secondary) }
                 Spacer()
-                if !model.bookmarks.isEmpty {
-                    Menu("Bookmarks") {
-                        ForEach(Array(model.pageIds.enumerated()).filter { model.bookmarks.contains($0.element) }, id: \.element) { i, id in
-                            Button("Page \(i + 1)") { model.go(to: id) }
-                        }
-                    }
-                    .fixedSize()
+                if !model.pageIds.isEmpty {
+                    Text("\(model.current + 1) / \(model.pageIds.count)").font(.callout).foregroundStyle(.secondary).monospacedDigit()
                 }
-                Button {
+                IconButton(model.bookmarked ? "Remove This Page's Bookmark" : "Bookmark This Page", symbol: model.bookmarked ? "star.fill" : "star") {
                     model.bookmark(!model.bookmarked)
-                } label: {
-                    Image(systemName: model.bookmarked ? "star.fill" : "star")
                 }
-                .help(model.bookmarked ? "Remove this page's bookmark" : "Bookmark this page")
+                .foregroundStyle(model.bookmarked ? Color.yellow : Color.primary)
                 .disabled(model.pageIds.isEmpty)
-                Text(model.pageIds.isEmpty ? "" : "Page \(model.current + 1) of \(model.pageIds.count)").font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                Picker("New page", selection: $model.style) {
-                    Text("Plain").tag("plain")
-                    Text("Lines").tag("lines")
-                    Text("Grid").tag("grid")
-                    Text("Dots").tag("dots")
+                if !model.bookmarks.isEmpty {
+                    Menu {
+                        ForEach(Array(model.pageIds.enumerated()).filter { model.bookmarks.contains($0.element) }, id: \.element) { i, id in
+                            Button("Page \(i + 1)", systemImage: "star") { model.go(to: id) }
+                        }
+                    } label: {
+                        Label("Bookmarks", systemImage: "bookmark").labelStyle(.iconOnly)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("Go to a bookmarked page")
                 }
-                .labelsHidden()
+                Divider().frame(height: 16)
+                // A blank page after this one: in the look last picked, or another from the menu.
+                Menu {
+                    ForEach([("plain", "Plain", "doc"), ("lines", "Lines", "line.3.horizontal"), ("grid", "Grid", "squareshape.split.3x3"), ("dots", "Dots", "circle.grid.3x3")], id: \.0) { style, name, symbol in
+                        Button(name, systemImage: model.style == style ? "checkmark" : symbol) { model.style = style; model.addPage() }
+                    }
+                } label: {
+                    Label("Add Page", systemImage: "doc.badge.plus").labelStyle(.iconOnly)
+                } primaryAction: {
+                    model.addPage()
+                }
+                .menuStyle(.borderlessButton)
                 .fixedSize()
-                .help("How a new page looks")
-                Button("Add Page") { model.addPage() }
-                    .help("A blank page after the one in view")
-                    .disabled(model.pageIds.isEmpty)
-                Button("Delete Page") { deleting = true }
+                .help("Add a blank page after this one (the menu picks its look)")
+                .disabled(model.pageIds.isEmpty)
+                IconButton("Delete This Page", symbol: "trash") { deleting = true }
                     .disabled(model.pageIds.count <= 1)
                     .confirmationDialog("Delete page \(model.current + 1) and what's on it?", isPresented: $deleting) {
                         Button("Delete Page", role: .destructive) { model.deletePage() }
                     }
-                Divider().frame(height: 16)
-                Picker("Tool", selection: $model.tool) {
-                    Text("Pen").tag(NotebookModel.Tool.pen)
-                    Text("Highlighter").tag(NotebookModel.Tool.highlighter)
-                    Text("Eraser").tag(NotebookModel.Tool.eraser)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                if model.tool != .eraser {
-                    ForEach(Array(model.palette.enumerated()), id: \.offset) { i, argb in
-                        Button { model.color = i } label: {
-                            Circle().fill(Color(nsColor: argbColor(argb | 0xff000000)))
-                                .frame(width: 16, height: 16)
-                                .overlay(Circle().stroke(Color.primary, lineWidth: model.color == i ? 2 : 0).padding(-3))
-                        }
-                        .buttonStyle(.plain)
-                        .help("Colour \(i + 1)")
-                    }
-                }
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.vertical, 5)
             Divider()
             NotebookCanvas(model: model)
+                .overlay(alignment: .topTrailing) { tools.padding(12) }
         }
         .task { await model.start() }
         .onDisappear { model.close() }
+    }
+}
+
+extension NotebookView {
+    /** The pen, highlighter and eraser, and the colours: a pill over the page's edge, as on the tablet. */
+    private var tools: some View {
+        VStack(spacing: 10) {
+            ForEach([(NotebookModel.Tool.pen, "Pen", "pencil"), (.highlighter, "Highlighter", "highlighter"), (.eraser, "Eraser", "eraser")], id: \.1) { tool, name, symbol in
+                Button { model.tool = tool } label: {
+                    Image(systemName: symbol)
+                        .font(.system(size: 15, weight: .medium))
+                        .frame(width: 30, height: 30)
+                        .background(model.tool == tool ? Color.accentColor.opacity(0.25) : .clear, in: Circle())
+                        .foregroundStyle(model.tool == tool ? Color.accentColor : Color.primary)
+                }
+                .buttonStyle(.plain)
+                .help(name)
+                .accessibilityLabel(name)
+            }
+            if model.tool != .eraser {
+                Divider().frame(width: 22)
+                ForEach(Array(model.palette.enumerated()), id: \.offset) { i, argb in
+                    Button { model.color = i } label: {
+                        Circle().fill(Color(nsColor: argbColor(argb | 0xff000000)))
+                            .frame(width: 18, height: 18)
+                            .overlay(Circle().stroke(Color.primary.opacity(0.35), lineWidth: 1))
+                            .overlay(Circle().stroke(Color.primary.opacity(0.85), lineWidth: model.color == i ? 2 : 0).padding(-3))
+                            .frame(width: 30, height: 26)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Colour \(i + 1)")
+                }
+            }
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 5)
+        .background(.regularMaterial, in: Capsule())
+        .overlay(Capsule().stroke(Color.primary.opacity(0.08)))
+        .shadow(color: .black.opacity(0.2), radius: 6, y: 2)
     }
 }
 

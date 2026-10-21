@@ -30,6 +30,7 @@
 		13697DC683B3C5F3291041A1 /* TriageOutbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B39F65AFF441FF2D45F7126 /* TriageOutbox.swift */; };
 		13EAE8E66F864C5572C361C6 /* NotebookDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97C0D614CC954BB7842F4C37 /* NotebookDocument.swift */; };
 		1468A047BF2B996204913DAE /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38016EC07C40680B0ADE0A2 /* CalendarView.swift */; };
+		180DFCB339AE09ADAA40422F /* IconButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F52C6CA114F831590B6115D /* IconButton.swift */; };
 		1B6838C956F8063CC2153380 /* Drive.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA07FBE8120B68CF20F71145 /* Drive.swift */; };
 		1BFA5AAE2229F0F0689D41F8 /* LiveConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B111B43286105888C95E27A /* LiveConnection.swift */; };
 		1F106ABC543B69FC05078163 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA6F27CA40561AE84FEDF4E5 /* ContentView.swift */; };
@@ -114,6 +115,7 @@
 		6B39F65AFF441FF2D45F7126 /* TriageOutbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriageOutbox.swift; sourceTree = "<group>"; };
 		7A010F9E19EB12E967D560D6 /* AssistantCore.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = AssistantCore.xcframework; path = Generated/AssistantCore.xcframework; sourceTree = "<group>"; };
 		7B4E3DA4EB4D31191F858137 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		7F52C6CA114F831590B6115D /* IconButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconButton.swift; sourceTree = "<group>"; };
 		810A10CAB79D31A17ED34718 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Fonts; path = core/fonts; sourceTree = SOURCE_ROOT; };
 		854FC7D59E747EF8FF2CEB3B /* ProjectScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectScheduleView.swift; sourceTree = "<group>"; };
 		907C5C215991FDCCB2EDF98F /* CalendarLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarLayout.swift; sourceTree = "<group>"; };
@@ -227,6 +229,7 @@
 				FA07FBE8120B68CF20F71145 /* Drive.swift */,
 				53058ED33125BBC098EFAC5B /* EventEditor.swift */,
 				B27157EBD084D06228785EE4 /* FilesView.swift */,
+				7F52C6CA114F831590B6115D /* IconButton.swift */,
 				0A20A9483B2B64425BF1A36D /* Info.plist */,
 				92310E2B3434EB97057F997D /* InitiativesView.swift */,
 				CFDF77BDEB586CABD9FDD6A2 /* MenuBarView.swift */,
@@ -437,6 +440,7 @@
 				1B6838C956F8063CC2153380 /* Drive.swift in Sources */,
 				33BE591F4DBF41FEB719E955 /* EventEditor.swift in Sources */,
 				8A19FD64B6D06565C64EF09C /* FilesView.swift in Sources */,
+				180DFCB339AE09ADAA40422F /* IconButton.swift in Sources */,
 				FBE5249ABA34837DB5971E8F /* InitiativesView.swift in Sources */,
 				1BFA5AAE2229F0F0689D41F8 /* LiveConnection.swift in Sources */,
 				E3E30A52CF0A457957CDF189 /* MailFile.swift in Sources */,

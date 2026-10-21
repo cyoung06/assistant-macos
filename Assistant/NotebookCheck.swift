@@ -30,7 +30,9 @@ enum NotebookCheck {
         func wait(_ what: () -> Bool) async { for _ in 0..<100 where !what() { try? await Task.sleep(for: .milliseconds(100)) } }
 
         let window = NSWindow(contentRect: NSRect(x: -3000, y: 0, width: 800, height: 1000), styleMask: [.titled], backing: .buffered, defer: false)
-        window.contentView = NSHostingView(rootView: NotebookView(path: path))
+        // Dark, as the app usually is (and drawn on the window's own background in a snapshot).
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.contentView = NSHostingView(rootView: NotebookView(path: path).background(Color(nsColor: .windowBackgroundColor)))
         window.orderFront(nil)
         var view: PDFView?
         await wait { view = find(PDFView.self, in: window.contentView); return view?.document != nil }
@@ -66,8 +68,9 @@ enum NotebookCheck {
 
         if let snapshot {
             try? await Task.sleep(for: .seconds(1))
-            if let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
-                view.cacheDisplay(in: view.bounds, to: rep)
+            // The whole window as it shows: the bars, the tools, the pages.
+            if let whole = window.contentView, let rep = whole.bitmapImageRepForCachingDisplay(in: whole.bounds) {
+                whole.cacheDisplay(in: whole.bounds, to: rep)
                 try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: snapshot))
             }
             check("drew it to \(snapshot)", FileManager.default.fileExists(atPath: snapshot))
@@ -96,8 +99,9 @@ enum NotebookCheck {
         if let snapshot {
             try? await Task.sleep(for: .seconds(1))
             let second = snapshot.replacingOccurrences(of: ".png", with: "-added.png")
-            if let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
-                view.cacheDisplay(in: view.bounds, to: rep)
+            // The whole window as it shows: the bars, the tools, the pages.
+            if let whole = window.contentView, let rep = whole.bitmapImageRepForCachingDisplay(in: whole.bounds) {
+                whole.cacheDisplay(in: whole.bounds, to: rep)
                 try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: second))
             }
             check("drew the new page to \(second)", FileManager.default.fileExists(atPath: second))

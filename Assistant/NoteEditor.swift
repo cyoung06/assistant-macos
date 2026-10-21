@@ -454,19 +454,18 @@ struct NoteView: View {
                 Text((path as NSString).lastPathComponent).font(.headline).lineLimit(1).truncationMode(.middle)
                 Text(statusText).font(.caption).foregroundStyle(editor.state == "error" || editor.state == "offline" ? .red : .secondary)
                 Spacer()
-                Toggle("Source", isOn: $editor.source).toggleStyle(.button).help("Show the Markdown as written")
+                IconToggle("Show the Markdown as Written", symbol: "chevron.left.forwardslash.chevron.right", isOn: $editor.source)
                 if !driveReadOnly(path) && editor.state != "loading" {
                     if editor.editing {
-                        Button("Done") { editor.setEditing(false) }.keyboardShortcut(.return, modifiers: .command)
+                        IconButton("Done Editing (⌘↩)", symbol: "checkmark.circle") { editor.setEditing(false) }.keyboardShortcut(.return, modifiers: .command)
                     } else {
-                        Button { editor.setEditing(true) } label: { Label("Edit", systemImage: "pencil") }.keyboardShortcut("e", modifiers: .command)
+                        IconButton("Edit (⌘E)", symbol: "pencil") { editor.setEditing(true) }.keyboardShortcut("e", modifiers: .command)
                     }
                 }
                 if !windowed {
-                    Button { openWindow(id: "note", value: path) } label: { Label("Open in New Window", systemImage: "macwindow.badge.plus") }
-                        .labelStyle(.iconOnly).help("Open in a window of its own (to keep beside another)")
+                    IconButton("Open in a Window of Its Own", symbol: "macwindow.badge.plus") { openWindow(id: "note", value: path) }
                 }
-                if let e = store.entries[path] { Button("Open") { Task { await store.openExternally(e) } } }
+                if let e = store.entries[path] { IconButton("Open in Its App", symbol: "arrow.up.forward.app") { Task { await store.openExternally(e) } } }
             }
             .padding(10)
             Divider()
