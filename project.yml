@@ -12,10 +12,11 @@ settings:
     SWIFT_VERSION: "5.0"
     MARKETING_VERSION: 0.1.0
     CURRENT_PROJECT_VERSION: 1
-    # Signed to run on this Mac only (no developer account).
-    CODE_SIGN_IDENTITY: "-"
-    CODE_SIGN_STYLE: Manual
-    DEVELOPMENT_TEAM: ""
+    # Signed with the Personal Team (a free Apple ID): Finder's File Provider (DriveProvider) only
+    # runs an extension signed by a team. Its development certificate is renewed yearly in Xcode.
+    CODE_SIGN_IDENTITY: "Apple Development"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: 3L6TQLAH47
     ENABLE_HARDENED_RUNTIME: NO
 aggregateTargets:
   # The shared core (core/, the assistant-core submodule) for this Mac: ./build-core.sh.
@@ -45,6 +46,7 @@ targets:
       - target: Core
       - package: AssistantAPI
       - target: ShareExtension
+      - target: DriveProvider
       - framework: Generated/AssistantCore.xcframework
         embed: false
     settings:
@@ -101,3 +103,27 @@ targets:
               NSExtensionActivationSupportsWebURLWithMaxCount: 1
               NSExtensionActivationSupportsImageWithMaxCount: 10
               NSExtensionActivationSupportsFileWithMaxCount: 10
+  # The drive in Finder (File Provider, like iCloud Drive): see DriveProvider/Provider.swift.
+  DriveProvider:
+    type: app-extension
+    platform: macOS
+    sources: [DriveProvider, Shared]
+    dependencies:
+      - package: AssistantAPI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.syeyoung.assistant.drive
+        PRODUCT_NAME: AssistantDrive
+    entitlements:
+      path: DriveProvider/DriveProvider.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+    info:
+      path: DriveProvider/Info.plist
+      properties:
+        CFBundleDisplayName: Assistant
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.fileprovider-nonui
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).Provider
+          NSExtensionFileProviderSupportsEnumeration: true

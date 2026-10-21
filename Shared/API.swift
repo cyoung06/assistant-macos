@@ -20,6 +20,8 @@ typealias Priority = Components.Schemas.TaskResponse.priorityPayload
 
 struct APIError: LocalizedError {
     let message: String
+    /** The HTTP status, when it came from one. */
+    var status: Int? = nil
     var errorDescription: String? { message }
 }
 
