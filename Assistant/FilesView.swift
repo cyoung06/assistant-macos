@@ -141,7 +141,8 @@ struct FilesView: View {
             Image(systemName: driveIcon(driveKind(e.name, folder: e.folder))).foregroundStyle(tint(e))
         }
         .help(e.path)
-        .onDrag { DriveStore.provider(e) }
+        // A List row's drag data: .onDrag here takes the list's clicks (rows select late, or not at all).
+        .itemProvider { DriveStore.provider(e) }
         .onDrop(of: e.folder ? [.driveItem, .fileURL] : [], isTargeted: nil) { store.accept($0, into: e.path) }
     }
 
