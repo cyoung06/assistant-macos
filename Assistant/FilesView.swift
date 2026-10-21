@@ -38,9 +38,11 @@ struct FilesView: View {
     private var here: String { selected.map { $0.folder ? $0.path : driveParent($0.path) } ?? top }
 
     var body: some View {
-        HSplitView {
-            tree.frame(minWidth: 220, idealWidth: 280, maxWidth: 520, maxHeight: .infinity)
-            preview.frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
+        SplitView(leadingWidth: (220, 280, 520), trailingMinWidth: 360) {
+            // Hosted by AppKit's split view, outside this view's environment: the model is passed in again.
+            tree.frame(maxWidth: .infinity, maxHeight: .infinity).environmentObject(model)
+        } trailing: {
+            preview.frame(maxWidth: .infinity, maxHeight: .infinity).environmentObject(model)
         }
         .navigationTitle(rootName)
         .task(id: top) {
