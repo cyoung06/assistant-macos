@@ -123,6 +123,32 @@ extension API {
     func driveMove(_ from: String, _ to: String) async throws { try await drive("POST", "/move", ["from": from, "to": to]) }
     func driveDelete(_ path: String) async throws { try await drive("DELETE", "/file", ["path": path]) }
 
+    // ---- the trash (deleting moves things there, kept 30 days) ----
+
+    /** What's in the trash, latest first. */
+    func driveTrash() async throws -> [Trashed] {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { d in
+            let s = try d.singleValueContainer().decode(String.self)
+            if let date = try? Date(s, strategy: .iso8601) { return date }
+            return try Date(s, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true))
+        }
+        return try decoder.decode([Trashed].self, from: try await drive("GET", "/trash"))
+    }
+
+    /** Puts [id] back where it was (numbered if that name's taken); where it went. */
+    @discardableResult
+    func driveRestore(_ id: String) async throws -> String {
+        let out = try await drive("POST", "/trash/\(id)/restore")
+        return ((try? JSONSerialization.jsonObject(with: out)) as? [String: Any])?["path"] as? String ?? ""
+    }
+
+    /** Deletes [id] from the trash for good. */
+    func drivePurge(_ id: String) async throws { try await drive("DELETE", "/trash/\(id)") }
+
+    /** Deletes everything in the trash for good. */
+    func driveEmptyTrash() async throws { try await drive("DELETE", "/trash") }
+
     /** Copies to [to], numbered if that's taken; where the copy went. */
     @discardableResult
     func driveCopy(_ from: String, _ to: String) async throws -> String {
@@ -174,6 +200,16 @@ extension API {
         let detail = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["detail"] as? String
         throw APIError(message: detail ?? (code == 409 ? "Something is already called that" : "HTTP \(code)"), status: code)
     }
+}
+
+/** Something in the trash: where it was ([path]; a folder's ends with "/"), and when it was deleted. */
+struct Trashed: Decodable, Identifiable, Hashable {
+    let id: String
+    let path: String
+    let name: String
+    let folder: Bool
+    let size: Int64
+    let deletedAt: Date
 }
 
 /** A write that went through: the file's new version, if known. */

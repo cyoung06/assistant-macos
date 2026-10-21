@@ -31,7 +31,7 @@ struct FilesView: View {
     @State private var renaming: DriveEntry?
     @State private var newName = ""
     @State private var naming: String?
-    @State private var deleting: DriveEntry?
+    @State private var showingTrash = false
 
     private var top: String { root ?? "Projects/" }
     private var selected: DriveEntry? { selection.flatMap { store.entries[$0] } }
@@ -70,8 +70,10 @@ struct FilesView: View {
                 Button { newName = ""; naming = here } label: { Label("New Folder", systemImage: "folder.badge.plus") }.disabled(driveReadOnly(here))
                 Button { newMarkdown(in: here) } label: { Label("New Markdown File", systemImage: "doc.badge.plus") }.disabled(driveReadOnly(here))
                 Button { Task { await store.reloadAll() } } label: { Label("Reload", systemImage: "arrow.triangle.2.circlepath") }
+                Button { showingTrash = true } label: { Label("Trash", systemImage: "trash") }.help("What was deleted (kept 30 days)")
             }
         }
+        .sheet(isPresented: $showingTrash) { TrashView() }
         .alert("Rename", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Name", text: $newName)
             Button("Rename") { if let e = renaming { Task { await store.rename(e, to: newName) } } }
@@ -82,16 +84,12 @@ struct FilesView: View {
             Button("Create") { if let f = naming { Task { await store.makeFolder(newName, in: f) } } }
             Button("Cancel", role: .cancel) {}
         }
-        .confirmationDialog("Delete “\(deleting?.name ?? "")”\(deleting?.folder == true ? " and everything in it" : "")?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
-            Button("Delete", role: .destructive) {
-                if let e = deleting {
-                    if selection == e.path { selection = nil }
-                    Task { await store.delete(e) }
-                }
-            }
-        } message: {
-            Text("It's deleted from the drive for every device.")
-        }
+    }
+
+    /** To the trash (kept 30 days; put back from Trash): no asking first. */
+    private func moveToTrash(_ e: DriveEntry) {
+        if selection == e.path { selection = nil }
+        Task { await store.delete(e) }
     }
 
     // ---- the tree ----
@@ -132,7 +130,7 @@ struct FilesView: View {
         .onPasteCommand(of: [.fileURL, .plainText]) { providers in
             if store.clip != nil { Task { await store.paste(into: here) } } else { _ = store.accept(providers, into: here) }
         }
-        .onDeleteCommand { if let e = selected, !driveFixed(e.path) { deleting = e } }
+        .onDeleteCommand { if let e = selected, !driveFixed(e.path) { moveToTrash(e) } }
         .onDrop(of: [.driveItem, .fileURL], isTargeted: nil) { store.accept($0, into: top) }
         .overlay(alignment: .bottom) { errorBar }
     }
@@ -259,7 +257,7 @@ struct FilesView: View {
             if !driveFixed(e.path) {
                 Divider()
                 Button("Rename…", systemImage: "pencil") { newName = e.name; renaming = e }
-                Button("Delete…", systemImage: "trash", role: .destructive) { deleting = e }
+                Button("Move to Trash", systemImage: "trash", role: .destructive) { moveToTrash(e) }
             }
         }
     }

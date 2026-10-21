@@ -56,6 +56,7 @@
 		8A19FD64B6D06565C64EF09C /* FilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B27157EBD084D06228785EE4 /* FilesView.swift */; };
 		8DEA21E3E93FCCCABEEDF9F7 /* API.swift in Sources */ = {isa = PBXBuildFile; fileRef = A27A7455F4599C3FDD1DDD5F /* API.swift */; };
 		906F8613B45C1F646B9A61D3 /* API.swift in Sources */ = {isa = PBXBuildFile; fileRef = A27A7455F4599C3FDD1DDD5F /* API.swift */; };
+		92CE8FCA5BDBDD66D648A0D1 /* TrashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 080FB3FD0DAD23681090B016 /* TrashView.swift */; };
 		942D9103D05EE4AEC27AAEAF /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = F96341E414BBA36470804496 /* Store.swift */; };
 		9F468D4B159F70829975B871 /* AssistantCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60F92B350450B01020B6AC08 /* AssistantCore.swift */; };
 		A368B955C8B40A3AAF03A45C /* TaskDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59D09BDF66A0DB53A2E52B9B /* TaskDetailView.swift */; };
@@ -121,6 +122,7 @@
 
 /* Begin PBXFileReference section */
 		0152D8A8F0B3D64B2F303BA4 /* NoteDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDocument.swift; sourceTree = "<group>"; };
+		080FB3FD0DAD23681090B016 /* TrashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashView.swift; sourceTree = "<group>"; };
 		0A1A4B8C0DF6503075DECD0D /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A20A9483B2B64425BF1A36D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		10E0E631AA38C1EC342C8804 /* AssistantAPI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AssistantAPI; path = Packages/AssistantAPI; sourceTree = SOURCE_ROOT; };
@@ -282,6 +284,7 @@
 				576ED3440CE0DE6BAB9FA2E6 /* SettingsView.swift */,
 				E39213900A45F2DF0041D1B9 /* SplitView.swift */,
 				59D09BDF66A0DB53A2E52B9B /* TaskDetailView.swift */,
+				080FB3FD0DAD23681090B016 /* TrashView.swift */,
 				6B39F65AFF441FF2D45F7126 /* TriageOutbox.swift */,
 				FD24FABEDF7DAAB63817C2C1 /* TriageView.swift */,
 				F3F7F036336E6873B3C4EBCC /* Notebooks */,
@@ -558,6 +561,7 @@
 				E90924A401C7D0C45D93A47B /* SplitView.swift in Sources */,
 				A368B955C8B40A3AAF03A45C /* TaskDetailView.swift in Sources */,
 				FE0B45DAA538C047C730D190 /* Tasks.swift in Sources */,
+				92CE8FCA5BDBDD66D648A0D1 /* TrashView.swift in Sources */,
 				13697DC683B3C5F3291041A1 /* TriageOutbox.swift in Sources */,
 				077329F349768ACD92DFB12F /* TriageView.swift in Sources */,
 			);
