@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
-import WebKit
 
 extension Notification.Name {
     /** Show a drive path in Files (a link followed from a note): its path is the object. */
@@ -9,204 +8,431 @@ extension Notification.Name {
 }
 
 /**
- * The web app's note editor (Markdown with TeX, written as it renders), bundled in the app
- * (Assistant/Editor, from ./sync-editor.sh) and shown in a web view. The page reaches nothing
- * itself: it asks here to read and write notes and their images (see web/src/embed/README.md).
- * One editor serves every note, so the note open before is saved when another one opens.
+ * A Markdown note, natively: the text in an NSTextView styled as the web editor's live preview (see
+ * [NotePreview], with the core's structure, math and diagrams, so it looks as on Android and the
+ * web), saved by [NoteDocument]. A note opens as a preview; editing is asked for (Edit). One editor
+ * serves every note, so the note open before is saved when another one opens.
  */
 @MainActor
-final class NoteEditor: NSObject, ObservableObject, WKScriptMessageHandlerWithReply {
+final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate {
     static let shared = NoteEditor()
 
-    /** What the page says about the note: loading, saved, unsaved, saving, error, conflict, readonly. */
+    /** How saving is going: loading, saved, unsaved, saving, error, conflict, readonly. */
     @Published private(set) var state = "loading"
     @Published private(set) var message: String?
-    /** The Markdown as written, instead of rendered as you write. */
-    @Published var source = false { didSet { run("assistantEditor.setSource(\(source))") } }
-
-    /** The note shown (or to be shown once the page is up), and its version as last read or written. */
-    private(set) var path: String?
-    private var etag: String?
-    private var ready = false
-    private var pending: [String: Any]?
-
-    private var api: API { AppModel.shared.api }
-
-    lazy var webView: WKWebView = {
-        let config = WKWebViewConfiguration()
-        config.userContentController.addScriptMessageHandler(self, contentWorld: .page, name: "assistant")
-        let view = WKWebView(frame: .zero, configuration: config)
-        view.setValue(false, forKey: "drawsBackground")
-        if let page = Bundle.main.url(forResource: "embed", withExtension: "html", subdirectory: "Editor") {
-            view.loadFileURL(page, allowingReadAccessTo: page.deletingLastPathComponent())
-        }
-        return view
-    }()
+    /** The Markdown as written everywhere, instead of rendered. */
+    @Published var source = false { didSet { restyle(structure: false) } }
+    /** Being edited (asked for: a note opens as a preview). */
+    @Published private(set) var editing = false
 
     /** Whether a note has been shown (so there may be something to save before quitting). */
     static private(set) var isOpen = false
 
+    private(set) var path: String?
+    private var document: NoteDocument?
+    private var spans: [Span] = []
+    private var loading = false
+    private var preview = NotePreview(style: noteStyle(dark: false))
+
+    private var api: API { AppModel.shared.api }
+
+    // ---- the view ----
+
+    private let layout = NoteLayoutManager()
+    private let storage = NSTextStorage()
+    private let container = NSTextContainer(size: CGSize(width: 600, height: CGFloat.greatestFiniteMagnitude))
+
+    lazy var textView: NoteTextView = {
+        storage.addLayoutManager(layout)
+        layout.addTextContainer(container)
+        container.widthTracksTextView = true
+        let view = NoteTextView(frame: .zero, textContainer: container)
+        view.editor = self
+        view.delegate = self
+        view.isRichText = false
+        view.allowsUndo = true
+        view.isAutomaticQuoteSubstitutionEnabled = false
+        view.isAutomaticDashSubstitutionEnabled = false
+        view.isAutomaticTextReplacementEnabled = false
+        view.drawsBackground = true
+        view.isVerticallyResizable = true
+        view.autoresizingMask = [.width]
+        view.isEditable = false
+        return view
+    }()
+
+    lazy var scrollView: NSScrollView = {
+        let scroll = NSScrollView()
+        scroll.hasVerticalScroller = true
+        scroll.documentView = textView
+        scroll.drawsBackground = false
+        NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: scroll, queue: .main) { _ in
+            MainActor.assumeIsolated { NoteEditor.shared.fit() }
+        }
+        scroll.postsFrameChangedNotifications = true
+        return scroll
+    }()
+
     private override init() {
         super.init()
+        NoteCore.registerFonts()
+    }
+
+    /** The text column: at most as wide as the web's, centred, with room below the last line. */
+    func fit() {
+        let width = scrollView.contentSize.width
+        let column = min(CGFloat(preview.style.maxWidth), width - 2 * CGFloat(preview.style.paddingHorizontal))
+        let side = max(CGFloat(preview.style.paddingHorizontal), (width - column) / 2)
+        textView.textContainerInset = NSSize(width: side, height: CGFloat(preview.style.paddingTop))
+        preview.width = column - 2 * container.lineFragmentPadding
+        preview.viewport = scrollView.contentSize.height
+        textView.minSize = NSSize(width: 0, height: scrollView.contentSize.height)
+        restyle(structure: false)
     }
 
     // ---- showing a note ----
 
-    /** Shows the note at [path], read from the drive (saving the one shown before). */
+    /** Shows the note at [path] (saving the one shown before), as a preview. */
     func open(_ path: String) async {
         guard path != self.path else { return }
-        _ = webView
-        state = "loading"
-        message = nil
+        if document != nil { _ = await flush() }
+        self.path = path
+        Self.isOpen = true
+        _ = textView
+        setEditing(false)
+        let document = NoteDocument(path: path, text: { [weak self] in self?.storage.string ?? "" }, status: { [weak self] s, m in self?.state = s; self?.message = m })
+        self.document = document
         do {
-            guard let read = try await api.driveRead(path) else { return }
-            self.path = path
-            Self.isOpen = true
-            etag = read.etag
-            let note: [String: Any] = [
-                "path": path, "text": String(decoding: read.data, as: UTF8.self), "etag": read.etag ?? NSNull(),
-                "readOnly": driveReadOnly(path), "theme": "system",
-            ]
-            if ready { _ = try await webView.callAsyncJavaScript("assistantEditor.open(note)", arguments: ["note": note], contentWorld: .page) }
-            else { pending = note }
+            let opened = try await document.open()
+            show(opened.text)
+            textView.setSelectedRange(NSRange(location: 0, length: 0))
+            textView.scrollToBeginningOfDocument(nil)
+            // A draft from before is being edited already.
+            if opened.state == "unsaved" || opened.state == "conflict" { setEditing(true) }
         } catch {
             state = "error"
             message = error.localizedDescription
         }
     }
 
-    /** Saves what's unsaved now; true once it's all written (if not, the editor keeps it as a draft and offers it next time). */
+    /** Shows [text] as the note (opened, or another version): not an edit. */
+    private func show(_ text: String) {
+        loading = true
+        let at = min(textView.selectedRange().location, (text as NSString).length)
+        storage.setAttributedString(NSAttributedString(string: text))
+        textView.setSelectedRange(NSRange(location: at, length: 0))
+        loading = false
+        restyle(structure: true)
+    }
+
+    /** The note's look in this appearance (light or dark). */
+    func appearanceChanged() {
+        let dark = textView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let style = noteStyle(dark: dark)
+        let images = preview.image
+        preview = NotePreview(style: style)
+        preview.image = images
+        textView.backgroundColor = NSColor(argb: style.background)
+        textView.insertionPointColor = NSColor(argb: style.text)
+        textView.selectedTextAttributes = [.backgroundColor: NSColor(argb: style.accentSoft)]
+        preview.image = { [weak self] url in self?.image(url) }
+        fit()
+    }
+
+    /** Restyling (which sets the selection back): its own selection changes aren't the user's. */
+    private var restyling = false
+
+    /** Styles the text again: [structure] when it changed (its spans are worked out again). */
+    func restyle(structure: Bool) {
+        guard path != nil, !restyling else { return }
+        restyling = true
+        defer { restyling = false }
+        if structure { spans = markdownSpans(text: storage.string) }
+        let selection = editing && textView.window?.firstResponder === textView ? textView.selectedRange() : nil
+        // Typing attributes and the selection survive restyling.
+        let selected = textView.selectedRange()
+        preview.apply(storage, spans: spans, selection: selection, source: source)
+        if textView.selectedRange() != selected { textView.setSelectedRange(selected) }
+        textView.typingAttributes = [.font: NoteCore.text(CGFloat(preview.style.fontSize)), .foregroundColor: NSColor(argb: preview.style.text)]
+    }
+
+    /** Editing (cursor, Markdown where the cursor is) or a preview (all rendered, links open). Leaving editing saves. */
+    func setEditing(_ on: Bool) {
+        let on = on && !(document?.readOnly ?? true)
+        editing = on
+        textView.isEditable = on
+        if on {
+            textView.window?.makeFirstResponder(textView)
+        } else if let document {
+            Task { await document.save() }
+        }
+        restyle(structure: false)
+    }
+
+    // ---- what the text view tells ----
+
+    func textDidChange(_ notification: Notification) {
+        restyle(structure: true)
+        if !loading { document?.edited() }
+        offerBlocks()
+    }
+
+    func textViewDidChangeSelection(_ notification: Notification) {
+        restyle(structure: false)
+    }
+
+    /** "/" at a line's start or after a space: the blocks it can insert (AppKit's completion list). */
+    private func offerBlocks() {
+        guard editing, let range = slashRange() else { return }
+        _ = range
+        textView.complete(nil)
+    }
+
+    /** "/" and what's typed after it, if the cursor's right after them. */
+    func slashRange() -> NSRange? {
+        let text = storage.string as NSString
+        let cursor = textView.selectedRange().location
+        guard textView.selectedRange().length == 0, cursor > 0 else { return nil }
+        let line = text.lineRange(for: NSRange(location: cursor - 1, length: 0))
+        let before = text.substring(with: NSRange(location: line.location, length: cursor - line.location))
+        guard let m = before.firstMatch(of: /(?:^|\s)\/([\w ]*)$/) else { return nil }
+        let typed = m.output.1.utf16.count
+        return NSRange(location: cursor - typed - 1, length: typed + 1)
+    }
+
+    func textView(_ textView: NSTextView, completions words: [String], forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>?) -> [String] {
+        guard let range = slashRange() else { return [] }
+        let query = (storage.string as NSString).substring(with: range).dropFirst().trimmingCharacters(in: .whitespaces).lowercased()
+        return slashItems().filter { item in query.isEmpty || "\(item.label) \(item.keywords)".lowercased().split(separator: " ").contains { $0.hasPrefix(query) } }.map(\.label)
+    }
+
+    /** A "/" item chosen: its text in place of what was typed, the cursor where it says. */
+    func insertBlock(_ label: String) {
+        guard let item = slashItems().first(where: { $0.label == label }), let range = slashRange() else { return }
+        textView.insertText(item.text, replacementRange: range)
+        textView.setSelectedRange(NSRange(location: range.location + Int(item.cursor), length: 0))
+    }
+
+    // ---- clicks, keys, images ----
+
+    /** A click on [index] in the text: a checkbox toggles (editing); a link opens (in the preview, or with ⌘). True if it was handled. */
+    func clicked(at index: Int, command: Bool) -> Bool {
+        guard index < storage.length else { return false }
+        var range = NSRange()
+        if let box = storage.attribute(.noteReplacement, at: index, effectiveRange: &range) as? CheckboxReplacement {
+            guard editing else { return true }
+            let text = storage.string as NSString
+            let bracket = text.range(of: "[", options: [], range: range)
+            if bracket.location != NSNotFound {
+                textView.insertText(box.checked ? " " : "x", replacementRange: NSRange(location: bracket.location + 1, length: 1))
+            }
+            return true
+        }
+        if let url = storage.attribute(.noteLink, at: index, effectiveRange: nil) as? String, !editing || command {
+            follow(url)
+            return true
+        }
+        return false
+    }
+
+    private func follow(_ href: String) {
+        if let path, let drivePath = linkPath(folder: driveParent(path), href: href) {
+            NotificationCenter.default.post(name: .driveReveal, object: drivePath)
+        } else if let url = URL(string: href), ["http", "https", "mailto"].contains(url.scheme?.lowercased() ?? "") {
+            // The web and mail only: no file:// or app schemes from a note.
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    /** ⌘B, ⌘I, ⌘K (as on the web). */
+    func shortcut(_ key: String) -> Bool {
+        guard editing else { return false }
+        let r = textView.selectedRange()
+        switch key {
+        case "b", "i":
+            apply(toggleWrap(text: storage.string, from: UInt32(r.location), to: UInt32(NSMaxRange(r)), mark: key == "b" ? "**" : "*"))
+        case "k":
+            let label = r.length > 0 ? (storage.string as NSString).substring(with: r) : "link"
+            textView.insertText("[\(label)](https://)", replacementRange: r)
+            textView.setSelectedRange(NSRange(location: r.location + label.utf16.count + 3, length: 8))
+        default:
+            return false
+        }
+        return true
+    }
+
+    private func apply(_ edit: Edit) {
+        for c in edit.changes.sorted(by: { $0.from > $1.from }) {
+            textView.insertText(c.insert, replacementRange: NSRange(location: Int(c.from), length: Int(c.to - c.from)))
+        }
+        textView.setSelectedRange(NSRange(location: Int(edit.anchor), length: Int(edit.head) - Int(edit.anchor)))
+    }
+
+    /** An image (pasted or dropped) uploaded into the note's attachments/ (a free name) and linked at the cursor. */
+    func insertImage(_ data: Data, name: String, mime: String) {
+        guard editing, let path else { return }
+        let at = textView.selectedRange().location
+        Task {
+            do {
+                let now = { let f = DateFormatter(); f.dateFormat = "yyyyMMddHHmmss"; return f.string(from: Date()) }()
+                let file = pastedName(name: name, mime: mime, now: now)
+                let made = try await api.driveCreate(driveParent(path) + "attachments/" + file) { try await self.api.driveWriteNew($0, data, type: mime) }
+                let link = relativeLink(folder: driveParent(path), path: made)
+                let text = storage.string as NSString
+                let lineStart = at == 0 || text.character(at: at - 1) == 10
+                textView.insertText((lineStart ? "" : "\n") + "![](\(link))\n", replacementRange: NSRange(location: at, length: 0))
+                Task { await DriveStore.shared.load(driveParent(path) + "attachments/") }
+            } catch {
+                message = "Couldn't add the image: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    // ---- images in the note ----
+
+    private var images: [String: NSImage?] = [:]
+
+    /** The image a link in the note shows, if it's loaded; asking starts loading it (styled again when it's in). */
+    func image(_ url: String) -> NSImage? {
+        if let known = images[url] { return known }
+        images[url] = .some(nil)
+        let path = self.path
+        Task {
+            var data: Data?
+            if let path, let drivePath = linkPath(folder: driveParent(path), href: url) {
+                data = try? await api.driveRead(drivePath)?.data
+            } else if let web = URL(string: url), ["http", "https"].contains(web.scheme?.lowercased() ?? "") {
+                data = try? await URLSession.shared.data(from: web).0
+            }
+            if let data, let img = NSImage(data: data) {
+                images[url] = img
+                restyle(structure: false)
+            }
+        }
+        return nil
+    }
+
+    // ---- what the screen asks ----
+
+    /** Saves what's unsaved now; true once it's all written (if not, it's kept as a draft and offered next time). */
     @discardableResult
     func flush() async -> Bool {
-        guard ready, path != nil else { return true }
-        return (try? await webView.callAsyncJavaScript("return await assistantEditor.flush()", arguments: [:], contentWorld: .page)) as? Bool ?? false
+        await document?.flush() ?? true
     }
 
     /** A newer version written elsewhere (another device, Finder): shown if nothing's being edited here. */
     func checkForChanges() async {
-        guard ready, let path, let etag else { return }
-        guard let read = try? await api.driveRead(path, ifNoneMatch: etag), let newer = read.etag, newer != etag else { return }
-        let note: [String: Any] = ["text": String(decoding: read.data, as: UTF8.self), "etag": newer]
-        _ = try? await webView.callAsyncJavaScript("assistantEditor.reloadIfUnchanged(note)", arguments: ["note": note], contentWorld: .page)
+        if let newer = await document?.newer() { show(newer) }
     }
 
-    private func run(_ script: String) {
-        guard ready else { return }
-        webView.evaluateJavaScript(script)
+    func keepMine() { Task { await document?.keepMine() } }
+    func loadTheirs() { Task { if let theirs = try? await document?.loadTheirs() { show(theirs) } } }
+    func saveCopy() async -> String? {
+        guard let (name, theirs) = try? await document?.saveCopy() else { return nil }
+        show(theirs)
+        return name
     }
 
-    // ---- what the page asks ----
+    /** The text as it is (for checks). */
+    var text: String { storage.string }
+}
 
-    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage, replyHandler: @escaping @MainActor @Sendable (Any?, String?) -> Void) {
-        // From the editor's own page only (bundled in the app), not from anything framed in a note.
-        guard message.frameInfo.isMainFrame, message.frameInfo.securityOrigin.protocol == "file" else { return replyHandler(nil, "Not the editor") }
-        guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return replyHandler(nil, "Not understood") }
-        let payload = body["payload"] as? [String: Any] ?? [:]
-        guard body["id"] != nil else {
-            notice(type, payload)
-            return replyHandler(nil, nil)
-        }
-        Task {
-            do { replyHandler(try await request(type, payload), nil) } catch { replyHandler(nil, error.localizedDescription) }
-        }
-    }
+/** The text view: clicks on checkboxes and links, ⌘B/I/K, the "/" list, pasted and dropped images. */
+final class NoteTextView: NSTextView {
+    weak var editor: NoteEditor?
 
-    /** A request's answer (see the README's table). */
-    func request(_ type: String, _ p: [String: Any]) async throws -> [String: Any] {
-        let path = p["path"] as? String ?? ""
-        switch type {
-        case "save":
-            // Only the note that's open here, and not one kept as PLMS has it.
-            guard path == self.path, !driveReadOnly(path) else { throw APIError(message: "Not the note that's open") }
-            let force = p["force"] as? Bool ?? false
-            let text = p["text"] as? String ?? ""
-            // An empty note is a newline (older servers refuse empty bodies).
-            guard let written = try await api.driveWrite(path, Data((text.isEmpty ? "\n" : text).utf8), type: "text/markdown; charset=utf-8", ifMatch: force ? nil : p["etag"] as? String) else {
-                return ["conflict": true]
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let inContainer = NSPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y)
+        if let layout = layoutManager, let container = textContainer {
+            var fraction: CGFloat = 0
+            let glyph = layout.glyphIndex(for: inContainer, in: container, fractionOfDistanceThroughGlyph: &fraction)
+            let rect = layout.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: container)
+            if rect.contains(inContainer), let editor = MainActor.assumeIsolated({ editor }) {
+                let index = layout.characterIndexForGlyph(at: glyph)
+                if MainActor.assumeIsolated({ editor.clicked(at: index, command: event.modifierFlags.contains(.command)) }) { return }
             }
-            if path == self.path { etag = written.etag }
-            return ["etag": written.etag ?? NSNull()]
-        case "load":
-            guard let read = try await api.driveRead(path) else { throw APIError(message: "Couldn't read \(path)") }
-            if path == self.path { etag = read.etag }
-            return ["text": String(decoding: read.data, as: UTF8.self), "etag": read.etag ?? NSNull()]
-        case "saveCopy":
-            let name = (path as NSString).lastPathComponent
-            let copy = ((name as NSString).deletingPathExtension) + " (my copy)" + ((name as NSString).pathExtension.isEmpty ? "" : "." + (name as NSString).pathExtension)
-            let folder = driveParent(path)
-            let typed = p["text"] as? String ?? ""
-            let text = Data((typed.isEmpty ? "\n" : typed).utf8)
-            let made = try await api.driveCreate(folder + copy) { try await api.driveWriteNew($0, text, type: "text/markdown; charset=utf-8") }
-            Task { await DriveStore.shared.load(folder) }
-            return ["name": (made as NSString).lastPathComponent]
-        case "uploadImage":
-            guard let notePath = p["notePath"] as? String, let data = Data(base64Encoded: p["base64"] as? String ?? "") else { throw APIError(message: "No image") }
-            let folder = driveParent(notePath) + "attachments/"
-            let wanted = (p["name"] as? String ?? "image.png").replacingOccurrences(of: "/", with: " ")
-            let made = try await api.driveCreate(folder + wanted) { try await api.driveWriteNew($0, data, type: p["mimeType"] as? String ?? "application/octet-stream") }
-            Task { await DriveStore.shared.load(folder) }
-            return ["relativePath": "attachments/" + uriComponent((made as NSString).lastPathComponent)]
-        case "readImage":
-            guard let read = try await api.driveRead(path) else { throw APIError(message: "Couldn't read \(path)") }
-            let type = read.type ?? UTType(filenameExtension: (path as NSString).pathExtension)?.preferredMIMEType ?? "application/octet-stream"
-            return ["mimeType": type, "base64": read.data.base64EncodedString()]
-        default:
-            throw APIError(message: "Unknown request \(type)")
         }
+        super.mouseDown(with: event)
     }
 
-    private func notice(_ type: String, _ p: [String: Any]) {
-        switch type {
-        case "ready":
-            ready = true
-            run("assistantEditor.setSource(\(source))")
-            if let note = pending {
-                pending = nil
-                Task { _ = try? await webView.callAsyncJavaScript("assistantEditor.open(note)", arguments: ["note": note], contentWorld: .page) }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command, let key = event.charactersIgnoringModifiers,
+           MainActor.assumeIsolated({ editor?.shortcut(key) ?? false }) { return true }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    /** The "/" list replaces what's typed after "/" (not a word) with the chosen block. */
+    override var rangeForUserCompletion: NSRange {
+        MainActor.assumeIsolated { editor?.slashRange() } ?? super.rangeForUserCompletion
+    }
+
+    override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange, movement: Int, isFinal flag: Bool) {
+        // Only the final choice goes in (not each one passed over).
+        guard flag, movement != NSCancelTextMovement else { return }
+        MainActor.assumeIsolated { editor?.insertBlock(word) }
+    }
+
+    override func paste(_ sender: Any?) {
+        if insertImages(from: .general) { return }
+        super.paste(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        insertImages(from: sender.draggingPasteboard) || super.performDragOperation(sender)
+    }
+
+    /** Images on [board] (files, or image data), each uploaded and linked; false if there are none. */
+    private func insertImages(from board: NSPasteboard) -> Bool {
+        guard MainActor.assumeIsolated({ editor?.editing ?? false }) else { return false }
+        var found = false
+        if let urls = board.readObjects(forClasses: [NSURL.self], options: [.urlReadingContentsConformToTypes: [UTType.image.identifier]]) as? [URL] {
+            for url in urls {
+                guard let data = try? Data(contentsOf: url) else { continue }
+                let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "image/png"
+                MainActor.assumeIsolated { editor?.insertImage(data, name: url.lastPathComponent, mime: mime) }
+                found = true
             }
-        case "status":
-            state = p["state"] as? String ?? state
-            message = p["message"] as? String
-        case "openLink":
-            if let path = p["resolvedPath"] as? String {
-                NotificationCenter.default.post(name: .driveReveal, object: path)
-            } else if let href = p["href"] as? String, let url = URL(string: href), ["http", "https", "mailto"].contains(url.scheme?.lowercased() ?? "") {
-                // The web and mail only: no file:// or app schemes from a note.
-                NSWorkspace.shared.open(url)
-            }
-        default:
-            break
         }
+        if !found, let png = board.data(forType: .png) {
+            MainActor.assumeIsolated { editor?.insertImage(png, name: "", mime: "image/png") }
+            found = true
+        } else if !found, let tiff = board.data(forType: .tiff), let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+            MainActor.assumeIsolated { editor?.insertImage(png, name: "", mime: "image/png") }
+            found = true
+        }
+        return found
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        MainActor.assumeIsolated { editor?.appearanceChanged() }
     }
 }
 
-/** A path part as JavaScript's encodeURIComponent writes it (as the web app links attachments). */
-func uriComponent(_ s: String) -> String {
-    let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.!~*'()")
-    return s.addingPercentEncoding(withAllowedCharacters: allowed) ?? s
-}
-
-/** The editor's web view, wherever a note is shown. */
-private struct NoteWebView: NSViewRepresentable {
-    func makeNSView(context: Context) -> WKWebView {
-        let view = NoteEditor.shared.webView
+/** The editor's scroll view, wherever a note is shown. */
+private struct NoteTextHost: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSScrollView {
+        let view = NoteEditor.shared.scrollView
         view.removeFromSuperview()
+        DispatchQueue.main.async { NoteEditor.shared.appearanceChanged() }
         return view
     }
 
-    func updateNSView(_ view: WKWebView, context: Context) {}
+    func updateNSView(_ view: NSScrollView, context: Context) {}
 
-    static func dismantleNSView(_ view: WKWebView, coordinator: ()) {
+    static func dismantleNSView(_ view: NSScrollView, coordinator: ()) {
         // Leaving the note (another file selected, Files closed): what's unsaved is saved.
         Task { @MainActor in await NoteEditor.shared.flush() }
     }
 }
 
-/** A Markdown note in Files: the editor, with its save state, a Markdown-as-written switch, and ⌘S. */
+/** A Markdown note in Files: a preview, Edit to write in it, its save state, a source switch. */
 struct NoteView: View {
     let entry: DriveEntry
     @ObservedObject private var editor = NoteEditor.shared
     @ObservedObject private var store = DriveStore.shared
+    @State private var copied: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -216,14 +442,34 @@ struct NoteView: View {
                 Text(statusText).font(.caption).foregroundStyle(editor.state == "error" || editor.state == "conflict" ? .red : .secondary)
                 Spacer()
                 Toggle("Source", isOn: $editor.source).toggleStyle(.button).help("Show the Markdown as written")
-                Button("Save") { Task { await editor.flush() } }.keyboardShortcut("s", modifiers: .command).disabled(driveReadOnly(entry.path))
+                if !driveReadOnly(entry.path) && editor.state != "loading" {
+                    if editor.editing {
+                        Button("Done") { editor.setEditing(false) }.keyboardShortcut(.return, modifiers: .command)
+                    } else {
+                        Button { editor.setEditing(true) } label: { Label("Edit", systemImage: "pencil") }.keyboardShortcut("e", modifiers: .command)
+                    }
+                }
                 Button("Open") { Task { await store.openExternally(entry) } }
             }
             .padding(10)
             Divider()
-            NoteWebView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            if editor.state == "conflict" {
+                HStack(spacing: 8) {
+                    Text("This note was changed somewhere else since you opened it.").font(.callout)
+                    Spacer()
+                    Button("Keep mine") { editor.keepMine() }
+                    Button("Load theirs") { editor.loadTheirs() }
+                    Button("Save mine as a copy") { Task { copied = await editor.saveCopy() } }
+                }
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(Color.red.opacity(0.15))
+            }
+            if let copied {
+                Text("Yours is saved as \(copied)").font(.callout).padding(6)
+            }
+            NoteTextHost().frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .task(id: entry.path) { await editor.open(entry.path) }
+        .task(id: entry.path) { copied = nil; await editor.open(entry.path) }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             Task { await editor.checkForChanges() }
         }

@@ -1,11 +1,11 @@
 import AppKit
-import WebKit
 
 /**
- * Diagnostics (from a terminal only): `Assistant.app/Contents/MacOS/Assistant -checkNoteEditor`
- * writes a throwaway note under "No project", edits and saves it through the editor, exercises
- * every request the page can make (image upload and read, save as a copy, a conflict), prints
- * what passed, deletes what it made, and quits.
+ * Diagnostics (from a terminal only): `Assistant.app/Contents/MacOS/Assistant -checkNoteEditor
+ * [-noteSnapshot <file.png> -noteSource <note.md>]` writes a throwaway note under "No project",
+ * opens it in the editor off screen (as a preview), edits and saves it, makes a conflict and
+ * settles it, prints what passed, deletes what it made, and quits. With -noteSnapshot, the note
+ * (from -noteSource, or the check's own) is also drawn to a PNG, as it shows.
  */
 @MainActor
 enum NoteEditorCheck {
@@ -18,6 +18,11 @@ enum NoteEditorCheck {
         }
     }
 
+    private static func argument(_ name: String) -> String? {
+        let args = CommandLine.arguments
+        return args.firstIndex(of: name).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
+    }
+
     private static func run() async -> Bool {
         let api = AppModel.shared.api
         let editor = NoteEditor.shared
@@ -28,56 +33,65 @@ enum NoteEditorCheck {
             print("\(passed ? "✓" : "✗") \(what)")
             ok = ok && passed
         }
-        func js(_ script: String) async -> Any? { try? await editor.webView.callAsyncJavaScript(script, arguments: [:], contentWorld: .page) }
         func wait(_ what: () -> Bool) async { for _ in 0..<100 where !what() { try? await Task.sleep(for: .milliseconds(100)) } }
 
-        // The editor shown off screen, as Files would.
-        let window = NSWindow(contentRect: NSRect(x: -3000, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
-        window.contentView = editor.webView
+        // The editor shown off screen, as Files would (dark, as the app usually is).
+        let window = NSWindow(contentRect: NSRect(x: -3000, y: 0, width: 900, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.contentView = editor.scrollView
+        editor.appearanceChanged()
 
+        let note = argument("-noteSource").flatMap { try? String(contentsOfFile: $0, encoding: .utf8) } ?? "# Check\n\nInline $x^2$ math, **bold**.\n"
         do {
-            try await api.driveWrite(path, Data("# Check\n\nInline $x^2$ math.\n".utf8), type: "text/markdown")
+            try await api.driveWrite(path, Data(note.utf8), type: "text/markdown")
             await editor.open(path)
             await wait { editor.state == "saved" }
-            check("opens the note (state \(editor.state))", editor.state == "saved")
-            try await Task.sleep(for: .seconds(1))
-            let katex = await js("return document.querySelectorAll('.katex').length") as? Int ?? 0
-            check("renders TeX (\(katex) formula)", katex > 0)
+            check("opens the note as a preview (state \(editor.state), editing \(editor.editing))", editor.state == "saved" && !editor.editing)
+            editor.fit()
+            check("shows it rendered (math drawn, marks hidden)", hasReplacement(editor) && editor.text == note)
 
-            // Typing at the end, then saving.
-            _ = await js("""
-                const c = document.querySelector('.cm-content'); c.focus();
-                const r = document.createRange(); r.selectNodeContents(c); r.collapse(false);
-                const s = getSelection(); s.removeAllRanges(); s.addRange(r);
-                document.execCommand('insertText', false, ' hello-mac');
-                """)
+            if let snapshot = argument("-noteSnapshot") {
+                try? await Task.sleep(for: .seconds(1))
+                let view = editor.scrollView
+                if let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                    view.cacheDisplay(in: view.bounds, to: rep)
+                    try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: snapshot))
+                    check("drew it to \(snapshot)", true)
+                }
+            }
+
+            // Editing: typing at the end, then leaving editing saves it.
+            editor.setEditing(true)
+            check("edits when asked", editor.editing && editor.textView.isEditable)
+            editor.textView.setSelectedRange(NSRange(location: (editor.text as NSString).length, length: 0))
+            editor.textView.insertText(" hello-mac", replacementRange: editor.textView.selectedRange())
+            editor.setEditing(false)
+            await wait { editor.state == "saved" }
             await editor.flush()
             let saved = try await api.driveRead(path).map { String(decoding: $0.data, as: UTF8.self) } ?? ""
             check("saves what's typed", saved.contains("hello-mac"))
 
-            // The page's requests, as it makes them.
-            let png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
-            let up = try await editor.request("uploadImage", ["notePath": path, "name": "pasted image.png", "mimeType": "image/png", "base64": png])
-            let rel = up["relativePath"] as? String ?? ""
-            check("uploads an image (\(rel))", rel == "attachments/pasted%20image.png")
-            let image = try await editor.request("readImage", ["path": folder + "attachments/pasted image.png"])
-            check("reads an image back", image["base64"] as? String == png && image["mimeType"] as? String == "image/png")
-            let copy = try await editor.request("saveCopy", ["path": path, "text": "mine"])
-            check("saves a copy (\(copy["name"] as? String ?? "?"))", copy["name"] as? String == "zz-mac-editor-test (my copy).md")
-
-            let before = try await editor.request("load", ["path": path])
+            // A conflict: written elsewhere, then typed here.
             try await api.driveWrite(path, Data("changed elsewhere\n".utf8), type: "text/markdown")
-            let conflict = try await editor.request("save", ["path": path, "text": "stale", "etag": before["etag"] ?? NSNull(), "force": false])
-            check("refuses to overwrite a newer version", conflict["conflict"] as? Bool == true)
-            let forced = try await editor.request("save", ["path": path, "text": "forced", "etag": NSNull(), "force": true])
-            check("overwrites when told to", forced["conflict"] == nil)
+            editor.setEditing(true)
+            editor.textView.insertText("!", replacementRange: NSRange(location: 0, length: 0))
+            await editor.flush()
+            check("refuses to overwrite a newer version (state \(editor.state))", editor.state == "conflict")
+            editor.loadTheirs()
+            await wait { editor.state == "saved" }
+            check("loads theirs", editor.text == "changed elsewhere\n")
         } catch {
             check("no errors (\(error.localizedDescription))", false)
         }
 
-        // Cleaning up.
-        for p in [path, folder + "zz-mac-editor-test (my copy).md", folder + "attachments/pasted image.png"] { try? await api.driveDelete(p) }
-        if (try? await api.driveFolder(folder + "attachments/"))?.isEmpty == true { try? await api.driveDelete(folder + "attachments/") }
+        try? await api.driveDelete(path)
         return ok
+    }
+
+    private static func hasReplacement(_ editor: NoteEditor) -> Bool {
+        let storage = editor.textView.textStorage!
+        var found = false
+        storage.enumerateAttribute(.noteReplacement, in: NSRange(location: 0, length: storage.length)) { v, _, _ in if v != nil { found = true } }
+        return found
     }
 }
