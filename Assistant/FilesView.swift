@@ -354,6 +354,8 @@ struct FilePreview: View {
     @ObservedObject private var store = DriveStore.shared
     @State private var file: URL?
     @State private var text: String?
+    @State private var image: NSImage?
+    @State private var pdf: PDFDocument?
     @State private var player: AVPlayer?
     @State private var failed: String?
 
@@ -382,13 +384,16 @@ struct FilePreview: View {
     @ViewBuilder private var content: some View {
         if let failed {
             Text("Couldn't open this: \(failed)").foregroundStyle(.secondary)
+        } else if let player {
+            VideoPlayer(player: player)
         } else if let file {
             switch kind {
-            case .pdf: PDFPreview(url: file)
+            case .pdf:
+                if let pdf { PDFPreview(document: pdf) } else { QuickLookPreview(url: file) }
             case .image:
-                if let image = NSImage(contentsOf: file) { ScrollView([.horizontal, .vertical]) { Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: image.size.width) }.padding() }
+                if let image { ScrollView([.horizontal, .vertical]) { Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: image.size.width) }.padding() }
                 else { QuickLookPreview(url: file) }
-            case .video, .audio: if let player { VideoPlayer(player: player) }
+            case .video, .audio: QuickLookPreview(url: file)
             case .markdown, .text:
                 if let text {
                     ScrollView {
@@ -416,33 +421,48 @@ struct FilePreview: View {
     }
 
     private func load() async {
-        file = nil; text = nil; failed = nil
+        file = nil; text = nil; image = nil; pdf = nil; failed = nil
         player?.pause(); player = nil
+        // Video and audio play as they arrive (the drive serves ranges): not downloaded first.
+        if kind == .video || kind == .audio {
+            player = AVPlayer(url: AppModel.shared.api.driveFileURL(entry.path))
+            return
+        }
         if (kind == .text || kind == .markdown) && entry.size > textLimit { return }
         do {
             let url = try await store.local(entry)
-            if kind == .text || kind == .markdown { text = (try? String(contentsOf: url, encoding: .utf8)) ?? (try? String(contentsOf: url, encoding: .isoLatin1)) }
-            if kind == .video || kind == .audio { player = AVPlayer(url: url) }
+            // Read and decoded off the main thread, so other files can be picked meanwhile.
+            let kind = kind
+            let opened = await Task.detached(priority: .userInitiated) { () -> (String?, NSImage?, PDFDocument?) in
+                switch kind {
+                case .text, .markdown: ((try? String(contentsOf: url, encoding: .utf8)) ?? (try? String(contentsOf: url, encoding: .isoLatin1)), nil, nil)
+                case .image: (nil, NSImage(contentsOf: url), nil)
+                case .pdf: (nil, nil, PDFDocument(url: url))
+                default: (nil, nil, nil)
+                }
+            }.value
+            guard !Task.isCancelled else { return }
+            (text, image, pdf) = opened
             file = url
         } catch {
-            failed = error.localizedDescription
+            if !Task.isCancelled { failed = error.localizedDescription }
         }
     }
 }
 
 private struct PDFPreview: NSViewRepresentable {
-    let url: URL
+    let document: PDFDocument
 
     func makeNSView(context: Context) -> PDFView {
         let view = PDFView()
         view.autoScales = true
         view.displayMode = .singlePageContinuous
-        view.document = PDFDocument(url: url)
+        view.document = document
         return view
     }
 
     func updateNSView(_ view: PDFView, context: Context) {
-        if view.document?.documentURL != url { view.document = PDFDocument(url: url) }
+        if view.document !== document { view.document = document }
     }
 }
 
