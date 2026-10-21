@@ -55,8 +55,9 @@ final class LiveConnection {
             c.queryItems = [URLQueryItem(name: "doc", value: path)]
             c.percentEncodedQuery = c.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
             let task = URLSession.shared.webSocketTask(with: c.url!)
-            // A notebook's whole state comes as one message on connecting: past URLSession's 1 MiB default.
-            task.maximumMessageSize = 64 << 20
+            // A notebook's whole state comes as one message on connecting, from our own server: no limit
+            // (URLSession's default is 1 MiB).
+            task.maximumMessageSize = Int.max
             socket = task
             task.resume()
             // Old messages: what they carried is in the sync this connection starts with.
