@@ -5,10 +5,12 @@ import SwiftUI
  * A notebook written on here, live with every device on it (see [NotebookDocument]): pages from the
  * base PDF or blank ones, everyone's ink drawn from its outline, pictures where they were put. Here a
  * simple pen (its width following a tablet's pressure where there is one), a highlighter, and an
- * eraser that takes strokes whole, as the tablet's and the web's do.
+ * eraser that takes strokes whole, as the tablet's and the web's do; blank pages added after the page
+ * in view, pages deleted (with what's on them), and pages bookmarked.
  */
 struct NotebookView: View {
     @StateObject private var model: NotebookModel
+    @State private var deleting = false
 
     init(path: String) {
         _model = StateObject(wrappedValue: NotebookModel(path: path))
@@ -19,6 +21,40 @@ struct NotebookView: View {
             HStack(spacing: 10) {
                 Text(model.status).font(.caption).foregroundStyle(.secondary)
                 Spacer()
+                if !model.bookmarks.isEmpty {
+                    Menu("Bookmarks") {
+                        ForEach(Array(model.pageIds.enumerated()).filter { model.bookmarks.contains($0.element) }, id: \.element) { i, id in
+                            Button("Page \(i + 1)") { model.go(to: id) }
+                        }
+                    }
+                    .fixedSize()
+                }
+                Button {
+                    model.bookmark(!model.bookmarked)
+                } label: {
+                    Image(systemName: model.bookmarked ? "star.fill" : "star")
+                }
+                .help(model.bookmarked ? "Remove this page's bookmark" : "Bookmark this page")
+                .disabled(model.pageIds.isEmpty)
+                Text(model.pageIds.isEmpty ? "" : "Page \(model.current + 1) of \(model.pageIds.count)").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                Picker("New page", selection: $model.style) {
+                    Text("Plain").tag("plain")
+                    Text("Lines").tag("lines")
+                    Text("Grid").tag("grid")
+                    Text("Dots").tag("dots")
+                }
+                .labelsHidden()
+                .fixedSize()
+                .help("How a new page looks")
+                Button("Add Page") { model.addPage() }
+                    .help("A blank page after the one in view")
+                    .disabled(model.pageIds.isEmpty)
+                Button("Delete Page") { deleting = true }
+                    .disabled(model.pageIds.count <= 1)
+                    .confirmationDialog("Delete page \(model.current + 1) and what's on it?", isPresented: $deleting) {
+                        Button("Delete Page", role: .destructive) { model.deletePage() }
+                    }
+                Divider().frame(height: 16)
                 Picker("Tool", selection: $model.tool) {
                     Text("Pen").tag(NotebookModel.Tool.pen)
                     Text("Highlighter").tag(NotebookModel.Tool.highlighter)
@@ -65,7 +101,14 @@ final class NotebookModel: NSObject, ObservableObject, PDFPageOverlayViewProvide
     @Published var status = "Opening…"
     @Published var tool: Tool = .pen
     @Published var color = 0
-    @Published private(set) var pdf: PDFDocument?
+    @Published var style = "plain"
+    /** The pages' ids, in order, and the page in view (its index). */
+    @Published private(set) var pageIds: [String] = []
+    @Published private(set) var current = 0
+    @Published private(set) var bookmarks: Set<String> = []
+    var bookmarked: Bool { pageIds.indices.contains(current) && bookmarks.contains(pageIds[current]) }
+    /** Where the pages show (set as it's made). */
+    private weak var view: PDFView?
     var palette: [UInt32] { tool == .highlighter ? highlighters : pens }
 
     private let notebook: NotebookDocument
@@ -136,7 +179,34 @@ final class NotebookModel: NSObject, ObservableObject, PDFPageOverlayViewProvide
         for s in notebook.strokes { strokes[s.page, default: [:]][s.id] = s }
         pictures = [:]
         for i in notebook.images { put(i) }
-        pdf = shown
+        pageIds = notebook.pages.map(\.id)
+        bookmarks = Set(notebook.bookmarks)
+        show(shown)
+    }
+
+    /** [document] shown, kept at the page that was showing. */
+    private func show(_ document: PDFDocument) {
+        self.shown = document
+        guard let view else { return }
+        let was = current
+        view.document = document
+        let index = min(was, max(0, document.pageCount - 1))
+        if let page = document.page(at: index) { view.go(to: page) }
+        current = index
+    }
+
+    /** What's shown (until a view shows it). */
+    private var shown: PDFDocument?
+
+    func attach(_ view: PDFView) {
+        self.view = view
+        if let shown { view.document = shown }
+    }
+
+    /** The page in view changed (PDFKit says). */
+    func scrolled() {
+        guard let view, let page = view.currentPage, let i = view.document?.index(for: page) else { return }
+        if current != i { current = i }
     }
 
     private var blanks: [String: PDFDocument] = [:]
@@ -174,6 +244,8 @@ final class NotebookModel: NSObject, ObservableObject, PDFPageOverlayViewProvide
             case .image(let id, let image):
                 for (page, on) in pictures where on[id] != nil { pictures[page]?[id] = nil; redraw(page) }
                 if let image { put(image); redraw(image.page) }
+            case .bookmarks:
+                bookmarks = Set(notebook.bookmarks)
             default: break
             }
         }
@@ -191,6 +263,39 @@ final class NotebookModel: NSObject, ObservableObject, PDFPageOverlayViewProvide
     }
 
     // ---- written here ----
+
+    /** A blank page in [style] after the page in view, its size; shown once added. */
+    func addPage() {
+        let pages = notebook.pages
+        guard !pages.isEmpty else { return }
+        let at = min(current, pages.count - 1)
+        let page = NotebookPage(id: UUID().uuidString.lowercased(), base: -1, style: style, width: pages[at].width, height: pages[at].height)
+        notebook.edit([.insertPage(index: UInt32(at + 1), page: page)])
+        Task {
+            await rebuild()
+            go(to: page.id)
+        }
+    }
+
+    /** The page in view gone, with what's on it. */
+    func deletePage() {
+        guard pageIds.indices.contains(current), pageIds.count > 1 else { return }
+        notebook.edit([.removePage(id: pageIds[current])])
+        Task { await rebuild() }
+    }
+
+    func bookmark(_ on: Bool) {
+        guard pageIds.indices.contains(current) else { return }
+        let id = pageIds[current]
+        notebook.edit([.bookmark(page: id, on: on)])
+        if on { bookmarks.insert(id) } else { bookmarks.remove(id) }
+    }
+
+    func go(to id: String) {
+        guard let i = pageIds.firstIndex(of: id), let page = view?.document?.page(at: i) else { return }
+        view?.go(to: page)
+        current = i
+    }
 
     /** What a stroke through [points] (x, y, pressure) on [page] will be. */
     func stroke(_ points: [Float], on page: String) -> NotebookStroke {
@@ -349,6 +454,9 @@ private struct NotebookCanvas: NSViewRepresentable {
 
     func makeNSView(context: Context) -> PDFView {
         let view = PDFView()
+        context.coordinator.observer = NotificationCenter.default.addObserver(forName: .PDFViewPageChanged, object: view, queue: .main) { [weak model] _ in
+            MainActor.assumeIsolated { model?.scrolled() }
+        }
         view.autoScales = true
         view.displayMode = .singlePageContinuous
         view.displaysPageBreaks = true
@@ -356,15 +464,17 @@ private struct NotebookCanvas: NSViewRepresentable {
         // The pages' overlays take the pen (rather than the PDF's text selection).
         view.pageOverlayViewProvider = model
         view.isInMarkupMode = true
+        model.attach(view)
         return view
     }
 
-    func updateNSView(_ view: PDFView, context: Context) {
-        guard view.document !== model.pdf else { return }
-        // Pages changed: kept at the page that was showing.
-        let at = view.currentPage.flatMap { view.document?.index(for: $0) }
-        view.document = model.pdf
-        if let at, let page = model.pdf?.page(at: min(at, max(0, (model.pdf?.pageCount ?? 1) - 1))) { view.go(to: page) }
+    func updateNSView(_ view: PDFView, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator {
+        var observer: NSObjectProtocol?
+        deinit { observer.map(NotificationCenter.default.removeObserver) }
     }
 }
 

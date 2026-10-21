@@ -53,6 +53,8 @@ final class NotebookDocument {
     var pages: [NotebookPage] { doc.pages() }
     var strokes: [NotebookStroke] { doc.strokes() }
     var images: [NotebookImage] { doc.images() }
+    /** The bookmarked pages' ids. */
+    var bookmarks: [String] { doc.bookmarks() }
     /** The base PDF's hash (see [blob]). */
     var base: String { doc.base() }
 

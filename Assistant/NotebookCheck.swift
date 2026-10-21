@@ -5,7 +5,8 @@ import SwiftUI
  * Diagnostics (from a terminal only): `Assistant.app/Contents/MacOS/Assistant -checkNotebook <path>
  * [-notebookSnapshot <file.png>]` opens the notebook at <path> (a PDF in the drive) off screen as Files
  * would, writes a stroke on its first page with the mouse (the server writes the PDF), erases it again,
- * prints what passed, and quits. With -notebookSnapshot, the first page with that stroke on it is drawn
+ * adds a grid page after it, bookmarks that and deletes it again (each seen by a second connection, as
+ * another device would), prints what passed, and quits. With -notebookSnapshot, the first page with that stroke on it is drawn
  * to a PNG, as it shows.
  */
 @MainActor
@@ -82,6 +83,34 @@ enum NotebookCheck {
         ink.mouseUp(with: event(.leftMouseUp, CGPoint(x: mid.x, y: mid.y - 20)))
         check("erases it", model.strokes[ink.id]?[stroke.id] == nil)
         check("the server takes it out of the PDF", await written(path) { !$0.contains(stroke.id) })
+
+        // Pages and bookmarks, as another device sees them.
+        let other = NotebookDocument(path: path)
+        do { try await other.open() } catch { check("opens it a second time", false); return false }
+        let count = model.pageIds.count
+        model.style = "grid"
+        model.addPage()
+        await wait { model.pageIds.count == count + 1 && model.current == 1 }
+        let newPage = model.pageIds.count > 1 ? model.pageIds[1] : ""
+        check("adds a grid page after the one in view, and shows it (page \(model.current + 1) of \(model.pageIds.count))", model.pageIds.count == count + 1 && model.current == 1)
+        if let snapshot {
+            try? await Task.sleep(for: .seconds(1))
+            let second = snapshot.replacingOccurrences(of: ".png", with: "-added.png")
+            if let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                view.cacheDisplay(in: view.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: second))
+            }
+            check("drew the new page to \(second)", FileManager.default.fileExists(atPath: second))
+        }
+        await wait { other.pages.contains { $0.id == newPage } }
+        check("another device gets it, a grid page", other.pages.first { $0.id == newPage }?.style == "grid")
+        model.bookmark(true)
+        await wait { other.bookmarks.contains(newPage) }
+        check("another device gets its bookmark", other.bookmarks.contains(newPage))
+        model.deletePage()
+        await wait { !other.pages.contains { $0.id == newPage } }
+        check("deletes it, its bookmark with it", model.pageIds.count == count && !other.pages.contains { $0.id == newPage } && !other.bookmarks.contains(newPage))
+        await other.close()
         model.close()
         try? await Task.sleep(for: .milliseconds(500))
         return ok
