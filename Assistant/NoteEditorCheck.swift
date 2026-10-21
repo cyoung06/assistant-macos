@@ -3,8 +3,8 @@ import AppKit
 /**
  * Diagnostics (from a terminal only): `Assistant.app/Contents/MacOS/Assistant -checkNoteEditor
  * [-noteSnapshot <file.png> -noteSource <note.md>]` writes a throwaway note under "No project",
- * opens it in the editor off screen (as a preview), edits and saves it, makes a conflict and
- * settles it, prints what passed, deletes what it made, and quits. With -noteSnapshot, the note
+ * opens it in the editor off screen (as a preview), edits it (the server writes the file), writes
+ * it elsewhere (the editor shows that as it comes), prints what passed, deletes what it made, and quits. With -noteSnapshot, the note
  * (from -noteSource, or the check's own) is also drawn to a PNG, as it shows.
  */
 @MainActor
@@ -45,8 +45,8 @@ enum NoteEditorCheck {
         do {
             try await api.driveWrite(path, Data(note.utf8), type: "text/markdown")
             await editor.open(path)
-            await wait { editor.state == "saved" }
-            check("opens the note as a preview (state \(editor.state), editing \(editor.editing))", editor.state == "saved" && !editor.editing)
+            await wait { editor.state == "live" }
+            check("opens the note live, as a preview (state \(editor.state), editing \(editor.editing))", editor.state == "live" && !editor.editing)
             editor.fit()
             check("shows it rendered (math drawn, marks hidden)", hasReplacement(editor) && editor.text == note)
 
@@ -60,26 +60,25 @@ enum NoteEditorCheck {
                 }
             }
 
-            // Editing: typing at the end, then leaving editing saves it.
+            // Editing: what's typed goes to the server, which writes the file a second later.
             editor.setEditing(true)
             check("edits when asked", editor.editing && editor.textView.isEditable)
             editor.textView.setSelectedRange(NSRange(location: (editor.text as NSString).length, length: 0))
             editor.textView.insertText(" hello-mac", replacementRange: editor.textView.selectedRange())
-            editor.setEditing(false)
-            await wait { editor.state == "saved" }
-            await editor.flush()
-            let saved = try await api.driveRead(path).map { String(decoding: $0.data, as: UTF8.self) } ?? ""
-            check("saves what's typed", saved.contains("hello-mac"))
+            var written = ""
+            for _ in 0..<50 where !written.contains("hello-mac") {
+                try? await Task.sleep(for: .milliseconds(200))
+                written = try await api.driveRead(path).map { String(decoding: $0.data, as: UTF8.self) } ?? ""
+            }
+            check("what's typed reaches the file", written.contains("hello-mac"))
 
-            // A conflict: written elsewhere, then typed here.
-            try await api.driveWrite(path, Data("changed elsewhere\n".utf8), type: "text/markdown")
-            editor.setEditing(true)
-            editor.textView.insertText("!", replacementRange: NSRange(location: 0, length: 0))
-            await editor.flush()
-            check("refuses to overwrite a newer version (state \(editor.state))", editor.state == "conflict")
-            editor.loadTheirs()
-            await wait { editor.state == "saved" }
-            check("loads theirs", editor.text == "changed elsewhere\n")
+            // Written elsewhere (an app without live editing): shown here as it comes, the cursor staying put.
+            let cursor = (editor.text as NSString).length
+            editor.textView.setSelectedRange(NSRange(location: cursor, length: 0))
+            try await api.driveWrite(path, Data(("elsewhere\n" + written).utf8), type: "text/markdown")
+            await wait { editor.text.hasPrefix("elsewhere\n") }
+            check("shows a write from elsewhere", editor.text == "elsewhere\n" + written)
+            check("keeps the cursor where it was in the text", editor.textView.selectedRange().location == cursor + ("elsewhere\n" as NSString).length)
         } catch {
             check("no errors (\(error.localizedDescription))", false)
         }

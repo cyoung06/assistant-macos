@@ -14,10 +14,10 @@ extension Notification.Name {
  * serves every note, so the note open before is saved when another one opens.
  */
 @MainActor
-final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate {
+final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate, NSTextStorageDelegate {
     static let shared = NoteEditor()
 
-    /** How saving is going: loading, saved, unsaved, saving, error, conflict, readonly. */
+    /** How the note is: loading, live, connecting, offline, error, readonly. */
     @Published private(set) var state = "loading"
     @Published private(set) var message: String?
     /** The Markdown as written everywhere, instead of rendered. */
@@ -92,26 +92,55 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate {
 
     // ---- showing a note ----
 
-    /** Shows the note at [path] (saving the one shown before), as a preview. */
+    /** Shows the note at [path] (letting go of the one shown before), as a preview. */
     func open(_ path: String) async {
         guard path != self.path else { return }
-        if document != nil { _ = await flush() }
+        await document?.close()
         self.path = path
         Self.isOpen = true
         _ = textView
+        storage.delegate = self
         setEditing(false)
-        let document = NoteDocument(path: path, text: { [weak self] in self?.storage.string ?? "" }, status: { [weak self] s, m in self?.state = s; self?.message = m })
+        let document = NoteDocument(path: path, status: { [weak self] s, m in self?.state = s; self?.message = m }, remote: { [weak self] in self?.remote($0) })
         self.document = document
         do {
-            let opened = try await document.open()
-            show(opened.text)
+            show(try await document.open())
             textView.setSelectedRange(NSRange(location: 0, length: 0))
             textView.scrollToBeginningOfDocument(nil)
-            // A draft from before is being edited already.
-            if opened.state == "unsaved" || opened.state == "conflict" { setEditing(true) }
         } catch {
             state = "error"
             message = error.localizedDescription
+        }
+    }
+
+    /** Another device's edits being applied (not typed here: not sent back). */
+    private var applying = false
+
+    /** Another device's edits, as the document took them: made to the text in order, the selection moving with the text around it. */
+    private func remote(_ changes: [TextChange]) {
+        var selected = textView.selectedRange()
+        applying = true
+        storage.beginEditing()
+        for c in changes {
+            let from = Int(c.from), to = Int(c.to), inserted = (c.insert as NSString).length
+            storage.replaceCharacters(in: NSRange(location: from, length: to - from), with: c.insert)
+            let shift = { (at: Int) -> Int in at >= to ? at + inserted - (to - from) : (at > from ? from + inserted : at) }
+            let start = shift(selected.location), end = shift(NSMaxRange(selected))
+            selected = NSRange(location: start, length: max(0, end - start))
+        }
+        storage.endEditing()
+        applying = false
+        textView.setSelectedRange(selected)
+        restyle(structure: true)
+    }
+
+    /** Characters changed (typed, pasted, or put in by the "/" list): to the other devices, as it happens. */
+    nonisolated func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions, range editedRange: NSRange, changeInLength delta: Int) {
+        guard editedMask.contains(.editedCharacters) else { return }
+        let insert = (textStorage.string as NSString).substring(with: editedRange)
+        MainActor.assumeIsolated {
+            guard !loading, !applying else { return }
+            document?.edited(from: editedRange.location, to: NSMaxRange(editedRange) - delta, insert: insert)
         }
     }
 
@@ -161,11 +190,7 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate {
         let on = on && !(document?.readOnly ?? true)
         editing = on
         textView.isEditable = on
-        if on {
-            textView.window?.makeFirstResponder(textView)
-        } else if let document {
-            Task { await document.save() }
-        }
+        if on { textView.window?.makeFirstResponder(textView) }
         restyle(structure: false)
     }
 
@@ -173,8 +198,7 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate {
 
     func textDidChange(_ notification: Notification) {
         restyle(structure: true)
-        if !loading { document?.edited() }
-        offerBlocks()
+        if !applying { offerBlocks() }
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
@@ -314,23 +338,9 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate {
 
     // ---- what the screen asks ----
 
-    /** Saves what's unsaved now; true once it's all written (if not, it's kept as a draft and offered next time). */
-    @discardableResult
-    func flush() async -> Bool {
-        await document?.flush() ?? true
-    }
-
-    /** A newer version written elsewhere (another device, Finder): shown if nothing's being edited here. */
-    func checkForChanges() async {
-        if let newer = await document?.newer() { show(newer) }
-    }
-
-    func keepMine() { Task { await document?.keepMine() } }
-    func loadTheirs() { Task { if let theirs = try? await document?.loadTheirs() { show(theirs) } } }
-    func saveCopy() async -> String? {
-        guard let (name, theirs) = try? await document?.saveCopy() else { return nil }
-        show(theirs)
-        return name
+    /** Lets the note go (quitting, or the window closing). */
+    func close() async {
+        await document?.close()
     }
 
     /** The text as it is (for checks). */
@@ -422,8 +432,8 @@ private struct NoteTextHost: NSViewRepresentable {
     func updateNSView(_ view: NSScrollView, context: Context) {}
 
     static func dismantleNSView(_ view: NSScrollView, coordinator: ()) {
-        // Leaving the note (another file selected, Files closed): what's unsaved is saved.
-        Task { @MainActor in await NoteEditor.shared.flush() }
+        // Leaving the note (Files closed): let go of it (another note opening does that itself).
+        Task { @MainActor in await NoteEditor.shared.close() }
     }
 }
 
@@ -432,14 +442,13 @@ struct NoteView: View {
     let entry: DriveEntry
     @ObservedObject private var editor = NoteEditor.shared
     @ObservedObject private var store = DriveStore.shared
-    @State private var copied: String?
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: driveIcon(.markdown)).foregroundStyle(.secondary)
                 Text(entry.name).font(.headline).lineLimit(1).truncationMode(.middle)
-                Text(statusText).font(.caption).foregroundStyle(editor.state == "error" || editor.state == "conflict" ? .red : .secondary)
+                Text(statusText).font(.caption).foregroundStyle(editor.state == "error" || editor.state == "offline" ? .red : .secondary)
                 Spacer()
                 Toggle("Source", isOn: $editor.source).toggleStyle(.button).help("Show the Markdown as written")
                 if !driveReadOnly(entry.path) && editor.state != "loading" {
@@ -453,38 +462,17 @@ struct NoteView: View {
             }
             .padding(10)
             Divider()
-            if editor.state == "conflict" {
-                HStack(spacing: 8) {
-                    Text("This note was changed somewhere else since you opened it.").font(.callout)
-                    Spacer()
-                    Button("Keep mine") { editor.keepMine() }
-                    Button("Load theirs") { editor.loadTheirs() }
-                    Button("Save mine as a copy") { Task { copied = await editor.saveCopy() } }
-                }
-                .padding(.horizontal, 10).padding(.vertical, 6)
-                .background(Color.red.opacity(0.15))
-            }
-            if let copied {
-                Text("Yours is saved as \(copied)").font(.callout).padding(6)
-            }
             NoteTextHost().frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .task(id: entry.path) { copied = nil; await editor.open(entry.path) }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
-            Task { await editor.checkForChanges() }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { _ in
-            Task { await editor.flush() }
-        }
+        .task(id: entry.path) { await editor.open(entry.path) }
     }
 
     private var statusText: String {
         switch editor.state {
-        case "saved": "Saved"
-        case "unsaved": "Edited"
-        case "saving": "Saving…"
-        case "error": "Couldn't save" + (editor.message.map { ": \($0)" } ?? "")
-        case "conflict": "Changed elsewhere"
+        case "live": "Live"
+        case "connecting": "Connecting…"
+        case "offline": "Offline (edits kept)"
+        case "error": "Couldn't open it" + (editor.message.map { ": \($0)" } ?? "")
         case "readonly": "From PLMS · read-only"
         default: ""
         }

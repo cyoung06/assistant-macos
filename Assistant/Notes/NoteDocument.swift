@@ -1,160 +1,117 @@
-import CryptoKit
 import Foundation
 
 /**
- * A note's file and what's typed into it, as the web editor keeps them: saved a second after typing
- * stops, only over the version it's based on (If-Match); what isn't written yet is kept as a draft
- * on this Mac until it is, and offered when the note opens again (as a conflict if the note changed
- * meanwhile). [text] is what the editor has now; [status] hears how saving is going.
+ * A note as every device has it at once: a Yjs document ([SyncDoc], the shared core's) kept in step
+ * with the API's over its y-websocket endpoint (`/api/v1/sync?doc=<path>`), which writes the file.
+ * Edits typed here go out as they're made ([edited]); others' come in through [remote], on the main
+ * actor, as the document takes them (so the editor's text and the document's never drift apart).
+ * Course files only read. [status] hears "loading", "live", "connecting", "offline", "readonly", or
+ * "error" with why.
  */
 @MainActor
 final class NoteDocument {
     let path: String
     let readOnly: Bool
-    private let text: () -> String
     private let status: (_ state: String, _ message: String?) -> Void
+    private let remote: (_ changes: [TextChange]) -> Void
     private var api: API { AppModel.shared.api }
 
-    /** The version the text is based on (an ETag). */
-    private(set) var version: String?
-    private var dirty = false
-    private var conflicted = false
-    private var saving: Task<Void, Never>?
-    private var timer: Task<Void, Never>?
-    private var keepTimer: Task<Void, Never>?
+    private let doc = SyncDoc()
+    private var socket: URLSessionWebSocketTask?
+    /** Edits made while not connected (the sync on connecting covers them anyway). */
+    private var pending: [Data] = []
+    private var opened: CheckedContinuation<String, Error>?
+    private var isOpen = false
+    /** Refused by the server (not a note to edit live, or moved or deleted): no more tries. */
+    private var refused = false
+    private var closed = false
 
-    private let draftURL: URL
-
-    init(path: String, text: @escaping () -> String, status: @escaping (String, String?) -> Void) {
+    init(path: String, status: @escaping (_ state: String, _ message: String?) -> Void, remote: @escaping (_ changes: [TextChange]) -> Void) {
         self.path = path
         self.readOnly = driveReadOnly(path)
-        self.text = text
         self.status = status
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "Assistant/note-drafts")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let name = SHA256.hash(data: Data(path.utf8)).map { String(format: "%02x", $0) }.joined().prefix(32)
-        draftURL = dir.appending(path: "\(name).json")
+        self.remote = remote
     }
 
-    /** The note to show, and how it opens ("saved", or "unsaved"/"conflict" with a draft from before). */
-    func open() async throws -> (text: String, state: String) {
+    /** The note's text: once it's come from the server (or, for course files, as the file is). */
+    func open() async throws -> String {
         status("loading", nil)
-        guard let read = try await api.driveRead(path) else { throw APIError(message: "Couldn't read \(path)") }
-        version = read.etag
-        let written = String(decoding: read.data, as: UTF8.self)
-        let draft = readOnly ? nil : readDraft()
-        let state: String
-        var shown = written
-        if let draft {
-            if draft.text == written { clearDraft(); state = "saved" }
-            else if draft.base == version { dirty = true; schedule(); state = "unsaved"; shown = draft.text }
-            else { version = draft.base; dirty = true; conflicted = true; state = "conflict"; shown = draft.text }
-        } else {
-            state = readOnly ? "readonly" : "saved"
+        if readOnly {
+            guard let read = try await api.driveRead(path) else { throw APIError(message: "Couldn't read \(path)") }
+            status("readonly", nil)
+            return String(decoding: read.data, as: UTF8.self)
         }
-        status(state, nil)
-        return (shown, state)
+        return try await withCheckedThrowingContinuation { c in
+            opened = c
+            Task { await connect() }
+        }
     }
 
-    /** The text was typed into: kept as a draft at once, saved a second after typing stops. */
-    func edited() {
-        guard !readOnly else { return }
-        dirty = true
-        keepTimer?.cancel()
-        keepTimer = Task { try? await Task.sleep(for: .milliseconds(300)); if !Task.isCancelled { keep() } }
-        if !conflicted { status("unsaved", nil); schedule() }
+    /** Typed here: [to] - [from] UTF-16 units from [from] replaced by [insert]. */
+    func edited(from: Int, to: Int, insert: String) {
+        guard !readOnly, !closed else { return }
+        send(doc.edit(from: UInt32(from), to: UInt32(to), insert: insert))
     }
 
-    private func schedule() {
-        timer?.cancel()
-        timer = Task { try? await Task.sleep(for: .seconds(1)); if !Task.isCancelled { await save() } }
+    private func send(_ message: Data) {
+        guard let socket, isOpen else { pending.append(message); return }
+        socket.send(.data(message)) { _ in }
     }
 
-    /** Writes the note; with [force], even over a version written elsewhere. */
-    func save(force: Bool = false) async {
-        guard !readOnly, dirty || force, !conflicted || force else { return }
-        if let saving { await saving.value; return await save(force: force) }
-        let writing = text()
-        dirty = false
-        status("saving", nil)
-        let task = Task {
+    /** Connected, with tries again (a little later each time, up to half a minute) until let go. */
+    private func connect() async {
+        var wait: UInt64 = 1
+        while !closed && !refused {
+            status("connecting", nil)
+            var c = URLComponents(url: api.base.appending(path: "api/v1/sync"), resolvingAgainstBaseURL: false)!
+            c.scheme = c.scheme == "https" ? "wss" : "ws"
+            c.queryItems = [URLQueryItem(name: "doc", value: path)]
+            c.percentEncodedQuery = c.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+            let task = URLSession.shared.webSocketTask(with: c.url!)
+            socket = task
+            task.resume()
+            // Old messages: what they carried is in the sync this connection starts with.
+            pending.removeAll()
+            task.send(.data(doc.start())) { _ in }
             do {
-                // An empty note is a newline (older servers refuse empty bodies).
-                let body = Data((writing.isEmpty ? "\n" : writing).utf8)
-                if let written = try await api.driveWrite(path, body, type: "text/markdown; charset=utf-8", ifMatch: force ? nil : version) {
-                    version = written.etag
-                    conflicted = false
-                    status(dirty ? "unsaved" : "saved", nil)
-                } else {
-                    dirty = true; conflicted = true
-                    status("conflict", nil)
+                while !closed {
+                    guard case .data(let bytes) = try await task.receive() else { continue }
+                    wait = 1
+                    isOpen = true
+                    let got = try doc.receive(message: bytes)
+                    if !got.changes.isEmpty, opened == nil { remote(got.changes) }
+                    // The server's answer to our sync step 1 (y-protocols: sync, step 2): the note is all here.
+                    if let c = opened, bytes.count > 1, bytes[0] == 0, bytes[1] == 1 {
+                        opened = nil
+                        c.resume(returning: doc.text())
+                    }
+                    if opened == nil { status("live", nil) }
+                    if let reply = got.reply { task.send(.data(reply)) { _ in } }
+                    for m in pending { task.send(.data(m)) { _ in } }
+                    pending.removeAll()
                 }
             } catch {
-                dirty = true
-                status("error", error.localizedDescription)
+                if task.closeCode == .policyViolation {
+                    refused = true
+                    let why = task.closeReason.map { String(decoding: $0, as: UTF8.self) } ?? "This note can't be opened"
+                    status("error", why)
+                    opened?.resume(throwing: APIError(message: why))
+                    opened = nil
+                }
             }
-            keep()
-        }
-        saving = task
-        await task.value
-        saving = nil
-    }
-
-    /** Writes what's unsaved now; true once everything typed is written (false: it's kept as a draft). */
-    func flush() async -> Bool {
-        timer?.cancel()
-        keep()
-        await save()
-        return readOnly || (!dirty && !conflicted)
-    }
-
-    /** A newer version written elsewhere (asked only if it changed), unless this one's being edited. */
-    func newer() async -> String? {
-        guard !dirty, saving == nil, !conflicted, let version else { return nil }
-        guard let read = try? await api.driveRead(path, ifNoneMatch: version), let etag = read.etag, etag != version else { return nil }
-        self.version = etag
-        return String(decoding: read.data, as: UTF8.self)
-    }
-
-    // ---- a conflict: what to keep ----
-
-    func keepMine() async { await save(force: true) }
-
-    /** The other version, instead of what's here (which is dropped). */
-    func loadTheirs() async throws -> String {
-        guard let read = try await api.driveRead(path) else { throw APIError(message: "Couldn't read \(path)") }
-        version = read.etag
-        dirty = false; conflicted = false
-        clearDraft()
-        status("saved", nil)
-        return String(decoding: read.data, as: UTF8.self)
-    }
-
-    /** What's here, written beside the note as "name (my copy).md"; its name, and the note's own version. */
-    func saveCopy() async throws -> (name: String, theirs: String) {
-        let name = (path as NSString).lastPathComponent
-        let stem = (name as NSString).deletingPathExtension, ext = (name as NSString).pathExtension
-        let copy = stem + " (my copy)" + (ext.isEmpty ? "" : "." + ext)
-        let mine = Data(text().utf8)
-        let made = try await api.driveCreate(driveParent(path) + copy) { try await self.api.driveWriteNew($0, mine, type: "text/markdown; charset=utf-8") }
-        return ((made as NSString).lastPathComponent, try await loadTheirs())
-    }
-
-    // ---- the draft ----
-
-    private struct Draft: Codable { let text: String; let base: String?; let at: Date }
-
-    /** Keeps what's unsaved as a draft (none once it's all written), written whole (a crash keeps the last). */
-    private func keep() {
-        keepTimer?.cancel()
-        guard !readOnly else { return }
-        guard dirty || conflicted else { return clearDraft() }
-        if let data = try? JSONEncoder().encode(Draft(text: text(), base: version, at: Date())) {
-            try? data.write(to: draftURL, options: .atomic)
+            isOpen = false
+            socket = nil
+            if closed || refused { break }
+            status("offline", nil)
+            try? await Task.sleep(nanoseconds: wait * 1_000_000_000)
+            wait = min(wait * 2, 30)
         }
     }
 
-    private func readDraft() -> Draft? { (try? Data(contentsOf: draftURL)).flatMap { try? JSONDecoder().decode(Draft.self, from: $0) } }
-
-    private func clearDraft() { try? FileManager.default.removeItem(at: draftURL) }
+    /** Lets the note go (a moment first, for what was just sent to go out). */
+    func close() async {
+        closed = true
+        if isOpen { try? await Task.sleep(nanoseconds: 300_000_000) }
+        socket?.cancel(with: .normalClosure, reason: nil)
+    }
 }
