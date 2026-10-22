@@ -223,7 +223,9 @@ struct CaptureView: View {
 
     private func sendToTriage() async {
         let source = mail.map { "Mail from \($0.from), subject \($0.subject):\n\n" } ?? ""
-        if let handOff, handOff(source + text, mail?.subject ?? "", mail?.link, images) {
+        // The model reads pictures (other files go into a project instead).
+        let pictures = images.filter { $0.mimeType.hasPrefix("image/") }
+        if let handOff, handOff(source + text, mail?.subject ?? "", mail?.link, pictures) {
             onDone()
             return
         }
@@ -231,7 +233,8 @@ struct CaptureView: View {
         error = nil
         defer { busy = false }
         do {
-            let ids = try await uploadImages()
+            var ids: [String] = []
+            for img in pictures { ids.append(try await api.upload(img.data, filename: img.name, mimeType: img.mimeType)) }
             try await api.submitTriage(text: source + text, attachmentIds: ids, title: mail?.subject ?? "", link: mail?.link)
             onDone()
         } catch { self.error = error.localizedDescription }
