@@ -41,7 +41,11 @@ struct FilesView: View {
     var body: some View {
         SplitView(leadingWidth: (220, 280, 520), trailingMinWidth: 360) {
             // Hosted by AppKit's split view, outside this view's environment: the model is passed in again.
-            tree.frame(maxWidth: .infinity, maxHeight: .infinity).environmentObject(model)
+            VStack(spacing: 0) {
+                quick
+                tree
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity).environmentObject(model)
         } trailing: {
             preview.frame(maxWidth: .infinity, maxHeight: .infinity).environmentObject(model)
         }
@@ -49,6 +53,7 @@ struct FilesView: View {
         .task(id: top) {
             selection = lastSelection[top]
             await store.load(top)
+            await store.loadQuick()
         }
         .onChange(of: selection) { _, s in lastSelection[top] = s }
         // A link followed in a note: the file it points to, selected (its folder listed first).
@@ -101,6 +106,45 @@ struct FilesView: View {
             let kids = items(e.path)
             return TreeItem(id: e.path, entry: e, kids: kids.isEmpty ? nil : kids)
         }
+    }
+
+    /** Starred files and folders, then the ones opened lately (those under the top shown): a click away. */
+    @ViewBuilder private var quick: some View {
+        let starred = store.starred.filter { $0.hasPrefix(top) }
+        let recent = store.recent.filter { $0.hasPrefix(top) && !$0.hasSuffix("/") }
+        if !starred.isEmpty || !recent.isEmpty {
+            VStack(alignment: .leading, spacing: 1) {
+                if !starred.isEmpty { quickHeading("Starred"); ForEach(starred, id: \.self) { quickRow($0) } }
+                if !recent.isEmpty { quickHeading("Recent"); ForEach(recent, id: \.self) { quickRow($0) } }
+            }
+            .padding(.vertical, 6)
+            Divider()
+        }
+    }
+
+    private func quickHeading(_ title: String) -> some View {
+        Text(title.uppercased()).font(.caption2.weight(.semibold)).foregroundStyle(.tertiary).padding(.horizontal, 12).padding(.top, 4)
+    }
+
+    private func quickRow(_ path: String) -> some View {
+        let folder = path.hasSuffix("/")
+        let name = path.split(separator: "/").last.map(String.init) ?? path
+        let where_ = String(driveParent(path).dropFirst(top.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return Button {
+            NotificationCenter.default.post(name: .driveReveal, object: path)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: folder ? "folder" : driveIcon(driveKind(name, folder: false))).foregroundStyle(.secondary).frame(width: 16)
+                Text(name).lineLimit(1).truncationMode(.middle)
+                Spacer(minLength: 4)
+                if !where_.isEmpty { Text(where_).font(.caption).foregroundStyle(.tertiary).lineLimit(1).truncationMode(.head) }
+            }
+            .padding(.horizontal, 12).padding(.vertical, 3)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(selection == path ? Color.accentColor.opacity(0.18) : .clear)
+        .help(path)
     }
 
     private var tree: some View {
@@ -232,6 +276,9 @@ struct FilesView: View {
                 if driveKind(e.name, folder: false) == .markdown { Button("Open in New Window", systemImage: "macwindow.badge.plus") { openWindow(id: "note", value: e.path) } }
                 Button("Download to Downloads", systemImage: "arrow.down.circle") { Task { await store.saveToDownloads(e) } }
                 Divider()
+            }
+            Button(store.starred.contains(e.path) ? "Unstar" : "Star", systemImage: store.starred.contains(e.path) ? "star.slash" : "star") {
+                Task { await store.star(e.path, !store.starred.contains(e.path)) }
             }
             Button("Copy", systemImage: "doc.on.doc") { store.clip = (e.path, false) }
             if !driveFixed(e.path) { Button("Cut", systemImage: "scissors") { store.clip = (e.path, true) } }
@@ -431,6 +478,7 @@ struct FilePreview: View {
     }
 
     private func load() async {
+        store.opened(entry.path)
         file = nil; text = nil; image = nil; pdf = nil; failed = nil; writing = false
         player?.pause(); player = nil
         // Video and audio play as they arrive (the drive serves ranges): not downloaded first.

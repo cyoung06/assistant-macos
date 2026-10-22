@@ -503,7 +503,10 @@ struct NoteView: View {
             Divider()
             NoteTextHost(editor: editor).frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .task(id: path) { await editor.open(path) }
+        .task(id: path) {
+            store.opened(path)
+            await editor.open(path)
+        }
         // Leaving the note (another file, Files or the window closed): let go of it.
         .onDisappear { Task { await editor.close() } }
     }

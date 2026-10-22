@@ -123,6 +123,23 @@ extension API {
     func driveMove(_ from: String, _ to: String) async throws { try await drive("POST", "/move", ["from": from, "to": to]) }
     func driveDelete(_ path: String) async throws { try await drive("DELETE", "/file", ["path": path]) }
 
+    // ---- what's kept about files: starred, recently opened, where a PDF was left ----
+
+    /** The starred files and folders' paths (a folder's ends with "/"). */
+    func driveStarred() async throws -> [String] {
+        try JSONDecoder().decode([FileStatePath].self, from: try await drive("GET", "/starred")).map(\.path)
+    }
+
+    /** The files opened most recently, latest first. */
+    func driveRecent(_ limit: Int = 8) async throws -> [String] {
+        try JSONDecoder().decode([FileStatePath].self, from: try await drive("GET", "/recent", ["limit": String(limit)])).map(\.path)
+    }
+
+    /** Changes what's kept about [path] (what's given is set; the rest stays). */
+    func driveChangeState(_ path: String, _ change: [String: Any]) async throws {
+        try await drive("PATCH", "/state", ["path": path], body: try JSONSerialization.data(withJSONObject: change), type: "application/json")
+    }
+
     // ---- the trash (deleting moves things there, kept 30 days) ----
 
     /** What's in the trash, latest first. */
@@ -201,6 +218,8 @@ extension API {
         throw APIError(message: detail ?? (code == 409 ? "Something is already called that" : "HTTP \(code)"), status: code)
     }
 }
+
+private struct FileStatePath: Decodable { let path: String }
 
 /** Something in the trash: where it was ([path]; a folder's ends with "/"), and when it was deleted. */
 struct Trashed: Decodable, Identifiable, Hashable {

@@ -16,6 +16,29 @@ final class DriveStore: ObservableObject {
     @Published var error: String?
     /** Copied or cut, to paste into another folder. */
     @Published var clip: (path: String, cut: Bool)?
+    /** Starred files and folders, and the files opened lately (latest first): at the top of Files. */
+    @Published private(set) var starred: [String] = []
+    @Published private(set) var recent: [String] = []
+
+    /** Starred and recent, as the server has them now. */
+    func loadQuick() async {
+        if let s = try? await api.driveStarred() { starred = s }
+        if let r = try? await api.driveRecent(8) { recent = r }
+    }
+
+    func star(_ path: String, _ on: Bool) async {
+        starred = on ? (starred + [path]).sorted() : starred.filter { $0 != path }
+        try? await api.driveChangeState(path, ["starred": on])
+        await loadQuick()
+    }
+
+    /** [path] was opened (for Recent). */
+    func opened(_ path: String) {
+        Task {
+            try? await api.driveChangeState(path, ["opened": true])
+            await loadQuick()
+        }
+    }
 
     private var api: API { AppModel.shared.api }
     private var loading: Set<String> = []
