@@ -14,8 +14,18 @@ enum NotebookCheck {
     static func runIfAsked() {
         let args = CommandLine.arguments
         guard let i = args.firstIndex(of: "-checkNotebook"), i + 1 < args.count else { return }
+        // Each line as it's printed (a crash otherwise loses what's buffered).
+        setvbuf(stdout, nil, _IOLBF, 0)
         Task {
-            let ok = await run(path: args[i + 1], snapshot: args.firstIndex(of: "-notebookSnapshot").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil })
+            // A notebook of its own (a copy of the PDF given), to the trash afterwards.
+            let api = AppModel.shared.api
+            guard let path = try? await api.driveCopy(args[i + 1], "Projects/No project/zz-mac-notebook-test.pdf") else {
+                print("✗ copies \(args[i + 1]) to write on"); print("NOTEBOOK CHECK: FAIL"); exit(1)
+            }
+            var ok = await run(path: path, snapshot: args.firstIndex(of: "-notebookSnapshot").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil })
+            ok = await reopen(path: path) && ok
+            try? await api.driveDelete(path)
+            LiveCache(path: path).forget()
             print(ok ? "NOTEBOOK CHECK: PASS" : "NOTEBOOK CHECK: FAIL")
             exit(ok ? 0 : 1)
         }
@@ -35,9 +45,15 @@ enum NotebookCheck {
         window.contentView = NSHostingView(rootView: NotebookView(path: path).background(Color(nsColor: .windowBackgroundColor)))
         window.orderFront(nil)
         var view: PDFView?
-        await wait { view = find(PDFView.self, in: window.contentView); return view?.document != nil }
+        let started = Date()
+        for _ in 0..<600 {
+            view = find(PDFView.self, in: window.contentView)
+            if view?.document != nil { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        print("  (shown after \(String(format: "%.2f", Date().timeIntervalSince(started))) s)")
         guard let view, let model = view.pageOverlayViewProvider as? NotebookModel, let doc = view.document, let page = doc.page(at: 0) else {
-            check("opens the notebook live", false)
+            check("opens the notebook live (status \((view?.pageOverlayViewProvider as? NotebookModel)?.status ?? "no view"))", false)
             return false
         }
         view.layoutDocumentView()
@@ -117,6 +133,27 @@ enum NotebookCheck {
         await other.close()
         model.close()
         try? await Task.sleep(for: .milliseconds(500))
+        return ok
+    }
+
+    /** Opened again, it's shown from what's kept on this Mac: at once, not after the server's answer. */
+    private static func reopen(path: String) async -> Bool {
+        let window = NSWindow(contentRect: NSRect(x: -3000, y: 0, width: 800, height: 1000), styleMask: [.titled], backing: .buffered, defer: false)
+        // Closed below and kept by Swift: not also released by AppKit on closing.
+        window.isReleasedWhenClosed = false
+        let started = Date()
+        window.contentView = NSHostingView(rootView: NotebookView(path: path))
+        window.orderFront(nil)
+        var shown: TimeInterval?
+        for _ in 0..<300 {
+            if find(PDFView.self, in: window.contentView)?.document != nil { shown = Date().timeIntervalSince(started); break }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        let ok = (shown ?? 99) < 1
+        print("\(ok ? "✓" : "✗") opens again from what's kept on this Mac (\(shown.map { String(format: "%.0f ms", $0 * 1000) } ?? "not at all"))")
+        (find(PDFView.self, in: window.contentView)?.pageOverlayViewProvider as? NotebookModel)?.close()
+        try? await Task.sleep(for: .milliseconds(500))
+        window.close()
         return ok
     }
 

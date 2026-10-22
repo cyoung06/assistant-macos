@@ -42,6 +42,7 @@
 		3246EC292C4A7B4206403548 /* Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF9813F4655E59F5FA7A519F /* Tasks.swift */; };
 		33BE591F4DBF41FEB719E955 /* EventEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53058ED33125BBC098EFAC5B /* EventEditor.swift */; };
 		349A15C32C0DAC9BE772F178 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0A1A4B8C0DF6503075DECD0D /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		34BE3EB388AF3285390ABDB1 /* LiveCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31B03E52275023DBB629899 /* LiveCache.swift */; };
 		3C1DEA1C2F11DED16E8ADE74 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 810A10CAB79D31A17ED34718 /* Fonts */; };
 		48F709E60DF5DFCBE3C863C4 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9721ABC546035EFF587925A0 /* ShareViewController.swift */; };
 		4DA3B9B3EBE36068B15538D3 /* DriveClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85BF8F6CF09B957CE14A0E9A /* DriveClient.swift */; };
@@ -165,6 +166,7 @@
 		C10CBC59C32F901023B4AB71 /* Assistant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Assistant.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CFDF77BDEB586CABD9FDD6A2 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		DA78FB333562EB6EDBDC451C /* CaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureView.swift; sourceTree = "<group>"; };
+		E31B03E52275023DBB629899 /* LiveCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveCache.swift; sourceTree = "<group>"; };
 		E39213900A45F2DF0041D1B9 /* SplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitView.swift; sourceTree = "<group>"; };
 		E70C85F1D0A801931F056B50 /* DriveDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveDomain.swift; sourceTree = "<group>"; };
 		F38016EC07C40680B0ADE0A2 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
@@ -223,6 +225,7 @@
 		540F8374D8300AC8721CDB9B /* Notes */ = {
 			isa = PBXGroup;
 			children = (
+				E31B03E52275023DBB629899 /* LiveCache.swift */,
 				4B111B43286105888C95E27A /* LiveConnection.swift */,
 				1C0E9EA2272E7167681C453D /* NoteCore.swift */,
 				0152D8A8F0B3D64B2F303BA4 /* NoteDocument.swift */,
@@ -545,6 +548,7 @@
 				8A19FD64B6D06565C64EF09C /* FilesView.swift in Sources */,
 				180DFCB339AE09ADAA40422F /* IconButton.swift in Sources */,
 				FBE5249ABA34837DB5971E8F /* InitiativesView.swift in Sources */,
+				34BE3EB388AF3285390ABDB1 /* LiveCache.swift in Sources */,
 				1BFA5AAE2229F0F0689D41F8 /* LiveConnection.swift in Sources */,
 				E3E30A52CF0A457957CDF189 /* MailFile.swift in Sources */,
 				880089C802722D49711D48C8 /* MenuBarView.swift in Sources */,

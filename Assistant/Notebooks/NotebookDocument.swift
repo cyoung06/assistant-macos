@@ -13,18 +13,37 @@ final class NotebookDocument {
     var changed: ((_ changes: [NotebookChange]) -> Void)?
     var status: (_ state: String, _ message: String?) -> Void = { _, _ in }
 
-    private let doc = NotebookDoc()
+    /** As this Mac last had it (opened from at once, offline too; see [LiveCache]). */
+    private let cache: LiveCache
+    private let doc: NotebookDoc
+    private var saving: Task<Void, Never>?
+
+    /** Keeps the notebook on this Mac a moment after it changes (here or elsewhere). */
+    private func keepSoon() {
+        saving?.cancel()
+        saving = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard let self, !Task.isCancelled else { return }
+            self.cache.save(self.doc.state())
+        }
+    }
     private var opened: CheckedContinuation<Void, Error>?
     private var isOpened = false
     private var connection: LiveConnection!
 
     init(path: String) {
         self.path = path
+        cache = LiveCache(path: path)
+        doc = cache.load().flatMap { try? NotebookDoc.fromState(state: $0) } ?? NotebookDoc()
         connection = LiveConnection(path: path, greeting: { [doc] in doc.start() }, receive: { [weak self] in try self?.receive($0) }) { [weak self] state, message in
             guard let self else { return }
-            if state == "error", let c = self.opened {
-                self.opened = nil
-                c.resume(throwing: APIError(message: message ?? "This notebook can't be opened"))
+            if state == "error" {
+                // Moved or deleted: what's kept here is no one's now.
+                self.cache.forget()
+                if let c = self.opened {
+                    self.opened = nil
+                    c.resume(throwing: APIError(message: message ?? "This notebook can't be opened"))
+                }
             }
             if state != "live" || self.isOpened { self.status(state, message) }
         }
@@ -33,6 +52,7 @@ final class NotebookDocument {
     private func receive(_ bytes: Data) throws -> Data? {
         let got = try doc.receive(message: bytes)
         if isOpened, !got.changes.isEmpty { changed?(got.changes) }
+        if !got.changes.isEmpty { keepSoon() }
         if let c = opened, LiveConnection.isSyncStep2(bytes) {
             opened = nil
             isOpened = true
@@ -43,7 +63,17 @@ final class NotebookDocument {
     }
 
     /** Once the notebook is here from the server. */
+    /**
+     * Once the notebook is here: at once if it's kept on this Mac (connecting meanwhile, what's changed
+     * since coming in as it does), else when the server has sent it.
+     */
     func open() async throws {
+        let base = doc.base()
+        if !doc.pages().isEmpty, base.isEmpty || FileManager.default.fileExists(atPath: Self.blobFile(base).path) {
+            isOpened = true
+            connection.connect()
+            return
+        }
         try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
             opened = c
             connection.connect()
@@ -61,16 +91,22 @@ final class NotebookDocument {
     func edit(_ edits: [NotebookEdit]) {
         guard !edits.isEmpty else { return }
         connection.send(doc.edit(edits: edits))
+        keepSoon()
     }
 
     func close() async {
+        saving?.cancel()
+        cache.save(doc.state())
         await connection.close()
     }
 
-    /** A file the server keeps by its hash (the base PDF, pictures): fetched once, then from the cache. */
+    /** Where a blob is kept: with the live documents (not in Caches, which macOS may clear), for opening offline. */
+    static func blobFile(_ hash: String) -> URL { LiveCache.folder.appending(path: "notebook-blobs/\(hash)") }
+
+    /** A file the server keeps by its hash (the base PDF, pictures): fetched once, then kept. */
     static func blob(_ hash: String) async throws -> Data {
-        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appending(path: "notebook-blobs")
-        let file = dir.appending(path: hash)
+        let file = blobFile(hash)
+        let dir = file.deletingLastPathComponent()
         if let data = try? Data(contentsOf: file) { return data }
         let api = AppModel.shared.api
         let (data, response) = try await URLSession.shared.data(from: api.base.appending(path: "api/v1/sync/blobs/\(hash)"))

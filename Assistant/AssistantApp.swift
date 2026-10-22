@@ -44,6 +44,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         MainActor.assumeIsolated {
             NoteEditorCheck.runIfAsked(); NotebookCheck.runIfAsked()
             DriveDomain.start()
+            // A permanent redirect the web server once gave for the drive's endpoint (to its own
+            // http://…:8080, refused by App Transport Security) is cached: forgotten, so it's asked again.
+            URLCache.shared.removeCachedResponse(for: URLRequest(url: AppModel.shared.api.driveURL("")))
         }
     }
 
