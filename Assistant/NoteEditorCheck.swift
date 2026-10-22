@@ -63,6 +63,17 @@ enum NoteEditorCheck {
             // Editing: what's typed goes to the server, which writes the file a second later.
             editor.setEditing(true)
             check("edits when asked", editor.editing && editor.textView.isEditable)
+
+            // Writing math: it typeset just below as it's written; its TeX error while it doesn't parse.
+            let math = (editor.text as NSString).range(of: "x^2")
+            if math.location != NSNotFound {
+                editor.textView.setSelectedRange(NSRange(location: math.location + 1, length: 0))
+                check("shows the math the cursor is in, typeset", editor.mathTip.superview != nil && editor.mathTip.message == nil)
+                editor.textView.insertText("\\frac{", replacementRange: editor.textView.selectedRange())
+                check("shows its TeX error while it doesn't parse (\(editor.mathTip.message ?? "no message"))", editor.mathTip.superview != nil && editor.mathTip.failed)
+                editor.textView.setSelectedRange(NSRange(location: (editor.text as NSString).length, length: 0))
+                check("hides it once the cursor leaves the math", editor.mathTip.superview == nil)
+            }
             editor.textView.setSelectedRange(NSRange(location: (editor.text as NSString).length, length: 0))
             editor.textView.insertText(" hello-mac", replacementRange: editor.textView.selectedRange())
             var written = ""

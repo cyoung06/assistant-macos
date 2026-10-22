@@ -29,6 +29,8 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate, NSTextSt
     private(set) var path: String?
     private var document: NoteDocument?
     private var spans: [Span] = []
+    /** The math being written, typeset below it (see [MathTip]). */
+    private(set) lazy var mathTip = MathTip()
     private var loading = false
     private var preview = NotePreview(style: noteStyle(dark: false))
 
@@ -181,6 +183,36 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate, NSTextSt
         preview.apply(storage, spans: spans, selection: selection, source: source)
         if textView.selectedRange() != selected { textView.setSelectedRange(selected) }
         textView.typingAttributes = [.font: NoteCore.text(CGFloat(preview.style.fontSize)), .foregroundColor: NSColor(argb: preview.style.text)]
+        showMathTip(at: selection)
+    }
+
+    /**
+     * While the cursor is in math (shown as TeX then): it typeset just below, as it's written, or the
+     * TeX error while it doesn't parse.
+     */
+    private func showMathTip(at selection: NSRange?) {
+        guard let selection, selection.length == 0,
+              let span = spans.first(where: { if case .math = $0.element { return Int($0.range.from) <= selection.location && selection.location <= Int($0.range.to) }; return false }),
+              case let .math(tex, display) = span.element,
+              let layout = textView.layoutManager, let container = textView.textContainer
+        else { mathTip.removeFromSuperview(); return }
+        if tex.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            mathTip.show(message: "Type TeX…", error: false)
+        } else {
+            do {
+                mathTip.show(Painted(try renderMath(tex: tex, display: display, fontSize: preview.style.fontSize, color: preview.style.text)))
+            } catch let RenderError.Invalid(message), let RenderError.TooLarge(message) {
+                mathTip.show(message: message, error: true)
+            } catch {
+                mathTip.show(message: error.localizedDescription, error: true)
+            }
+        }
+        let glyphs = layout.glyphRange(forCharacterRange: NSRange(location: Int(span.range.from), length: Int(span.range.to - span.range.from)), actualCharacterRange: nil)
+        let rect = layout.boundingRect(forGlyphRange: glyphs, in: container)
+        let origin = textView.textContainerOrigin
+        if mathTip.superview !== textView { textView.addSubview(mathTip) }
+        let x = min(rect.minX + origin.x, max(0, textView.bounds.width - mathTip.frame.width - 8))
+        mathTip.setFrameOrigin(NSPoint(x: x, y: rect.maxY + origin.y + 6))
     }
 
     /** Editing (cursor, Markdown where the cursor is) or a preview (all rendered, links open). Leaving editing saves. */

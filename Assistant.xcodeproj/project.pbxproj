@@ -49,6 +49,7 @@
 		5757EA6B96D3279583D27942 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FF889D728C9AC88CCF20C8B /* Item.swift */; };
 		5FF34E49D2B742C89440B8A4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B735F17A387FA063D84991C8 /* AppModel.swift */; };
 		617A54EAF669BF59098B1960 /* Enumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9DDC61F8F395E26DF748EBA /* Enumerator.swift */; };
+		6BA8F1DDA494711E00631C0D /* MathTip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62E5B6094C3734A4674A9CE0 /* MathTip.swift */; };
 		7B12431F07F5267B8F7959AF /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA78FB333562EB6EDBDC451C /* CaptureView.swift */; };
 		7E69B804A07A38F89756D3C3 /* AssistantApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69AA7DFFD6F76C5C5DA46DE8 /* AssistantApp.swift */; };
 		84AEB21967AF9500B2808650 /* ProjectScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 854FC7D59E747EF8FF2CEB3B /* ProjectScheduleView.swift */; };
@@ -139,6 +140,7 @@
 		59D09BDF66A0DB53A2E52B9B /* TaskDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailView.swift; sourceTree = "<group>"; };
 		60F92B350450B01020B6AC08 /* AssistantCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantCore.swift; sourceTree = "<group>"; };
 		6249D5871BCA9B2635435B1F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		62E5B6094C3734A4674A9CE0 /* MathTip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathTip.swift; sourceTree = "<group>"; };
 		69AA7DFFD6F76C5C5DA46DE8 /* AssistantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantApp.swift; sourceTree = "<group>"; };
 		6B39F65AFF441FF2D45F7126 /* TriageOutbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriageOutbox.swift; sourceTree = "<group>"; };
 		7A010F9E19EB12E967D560D6 /* AssistantCore.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = AssistantCore.xcframework; path = Generated/AssistantCore.xcframework; sourceTree = "<group>"; };
@@ -227,6 +229,7 @@
 			children = (
 				E31B03E52275023DBB629899 /* LiveCache.swift */,
 				4B111B43286105888C95E27A /* LiveConnection.swift */,
+				62E5B6094C3734A4674A9CE0 /* MathTip.swift */,
 				1C0E9EA2272E7167681C453D /* NoteCore.swift */,
 				0152D8A8F0B3D64B2F303BA4 /* NoteDocument.swift */,
 				4C8346665AE5364B29483C21 /* NotePreview.swift */,
@@ -551,6 +554,7 @@
 				34BE3EB388AF3285390ABDB1 /* LiveCache.swift in Sources */,
 				1BFA5AAE2229F0F0689D41F8 /* LiveConnection.swift in Sources */,
 				E3E30A52CF0A457957CDF189 /* MailFile.swift in Sources */,
+				6BA8F1DDA494711E00631C0D /* MathTip.swift in Sources */,
 				880089C802722D49711D48C8 /* MenuBarView.swift in Sources */,
 				A85F8499FD5D846D4456FB64 /* NoteCore.swift in Sources */,
 				DECBBB1F45D12FB48F876350 /* NoteDocument.swift in Sources */,
