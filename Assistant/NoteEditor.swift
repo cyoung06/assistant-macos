@@ -231,35 +231,35 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate, NSTextSt
         if !applying { offerBlocks(); offerLinks() }
     }
 
-    // ---- "[[": links to anything, found as it's typed ----
+    // ---- "@": mentions anything, found as it's typed ----
 
-    /** What "[[" found for what's typed after it, and the query it was for. */
+    /** What "@" found for what's typed after it, and the query it was for. */
     private var linkRefs: [RefItem] = []
     private var linkQuery: String?
     private var linkSearch: Task<Void, Never>?
 
-    /** "[[" and what's typed after it on this line, if the cursor's right after them. */
+    /** "@" (at a line's start or after a space) and what's typed after it, if the cursor's right after them. */
     func linkRange() -> NSRange? {
         let text = storage.string as NSString
         let cursor = textView.selectedRange().location
         guard textView.selectedRange().length == 0, cursor > 1 else { return nil }
         let line = text.lineRange(for: NSRange(location: cursor - 1, length: 0))
         let before = text.substring(with: NSRange(location: line.location, length: cursor - line.location))
-        guard let m = before.firstMatch(of: /\[\[([^\]\n]*)$/) else { return nil }
+        guard let m = before.firstMatch(of: /(?:^|[\s(])@(\[[^\]\n]*|[^\s@\[\]()]*(?: [^\s@\[\]()]+){0,2})$/) else { return nil }
         let typed = m.output.1.utf16.count
-        return NSRange(location: cursor - typed - 2, length: typed + 2)
+        return NSRange(location: cursor - typed - 1, length: typed + 1)
     }
 
-    /** "[[" being typed: what matches is looked up (a moment after typing stops) and offered. */
+    /** "@" being typed: what matches is looked up (a moment after typing stops) and offered. */
     private func offerLinks() {
         guard editing, let range = linkRange() else { linkSearch?.cancel(); linkQuery = nil; return }
-        let query = String((storage.string as NSString).substring(with: range).dropFirst(2))
+        let query = String((storage.string as NSString).substring(with: range).dropFirst().trimmingPrefix("["))
         guard query != linkQuery else { return }
         linkSearch?.cancel()
         linkSearch = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(200))
             guard !Task.isCancelled, let refs = try? await AppModel.shared.api.search(query) else { return }
-            guard let self, let now = self.linkRange(), String((self.storage.string as NSString).substring(with: now).dropFirst(2)) == query else { return }
+            guard let self, let now = self.linkRange(), String((self.storage.string as NSString).substring(with: now).dropFirst().trimmingPrefix("[")) == query else { return }
             self.linkRefs = refs
             self.linkQuery = query
             if !refs.isEmpty { self.textView.complete(nil) }
@@ -272,20 +272,19 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate, NSTextSt
         return "\(r.title) — \(what)" + String(repeating: "\u{200B}", count: i)
     }
 
-    /** A found thing chosen: a Markdown link to it in place of "[[…" (and the "]]" after, if typed). */
+    /** A found thing chosen: written in place of "@…": @Name for what has a name, a Markdown link for the rest. */
     func insertLink(_ label: String) {
         guard let range = linkRange(), let i = linkRefs.indices.first(where: { linkLabel(linkRefs[$0], $0) == label }) else { return }
         let r = linkRefs[i]
-        // A drive note or file: relative to this note, as notes link files.
-        var href = r.url
-        if let path, let m = r.url.firstMatch(of: /^(?:https?:\/\/[^\/]+)?\/files\/([^?#]+)$/) {
-            let drive = "Projects/" + m.output.1.split(separator: "/").map { String($0).removingPercentEncoding ?? String($0) }.joined(separator: "/")
-            href = relativeLink(folder: driveParent(path), path: drive)
+        // Things with a name: @Name (what's called that); the rest (mail, PLMS, the web) a Markdown link.
+        let text: String
+        switch r.kind {
+        case .task: text = mentionText(name: r.title.replacing(#/^\#\d+ /#, with: ""))
+        case .event, .project, .note, .file: text = mentionText(name: r.title)
+        default: text = "[\(r.title.replacingOccurrences(of: "[", with: "\\[").replacingOccurrences(of: "]", with: "\\]"))](\(r.url))"
         }
-        let title = r.title.replacingOccurrences(of: "[", with: "\\[").replacingOccurrences(of: "]", with: "\\]")
-        let text = "[\(title)](\(href))"
-        let after = (storage.string as NSString).length >= range.upperBound + 2 && (storage.string as NSString).substring(with: NSRange(location: range.upperBound, length: 2)) == "]]"
-        textView.insertText(text, replacementRange: NSRange(location: range.location, length: range.length + (after ? 2 : 0)))
+        let after = (storage.string as NSString).length > range.upperBound && (storage.string as NSString).substring(with: NSRange(location: range.upperBound, length: 1)) == "]"
+        textView.insertText(text, replacementRange: NSRange(location: range.location, length: range.length + (after ? 1 : 0)))
         linkQuery = nil
     }
 
@@ -349,6 +348,21 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate, NSTextSt
     }
 
     private func follow(_ href: String) {
+        // A mention: what it means here (a task opens in the app, a note or file in Files, the rest in the browser).
+        if href.hasPrefix("mention:") {
+            let name = String(href.dropFirst("mention:".count)), from = path
+            Task {
+                guard let r = try? await AppModel.shared.api.mention(name, from: from) else { return }
+                if let m = r.url.firstMatch(of: /\/files\/([^?#]+)$/) {
+                    NotificationCenter.default.post(name: .driveReveal, object: "Projects/" + m.output.1.split(separator: "/").map { String($0).removingPercentEncoding ?? String($0) }.joined(separator: "/"))
+                } else if let m = r.url.firstMatch(of: /\/task\/([0-9a-f-]{36})/) {
+                    AppModel.shared.openTask = String(m.output.1)
+                } else if let url = URL(string: r.url) {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            return
+        }
         if let path, let drivePath = linkPath(folder: driveParent(path), href: href) {
             NotificationCenter.default.post(name: .driveReveal, object: drivePath)
         } else if let url = URL(string: href), ["http", "https", "mailto"].contains(url.scheme?.lowercased() ?? "") {

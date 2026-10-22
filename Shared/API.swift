@@ -86,6 +86,9 @@ final class API: @unchecked Sendable {
     }
 
     func search(_ q: String) async throws -> [RefItem] { try await client.search(.init(query: .init(q: q, limit: 10))).ok.body.json }
+    /** What a mention (`@Name`) in the note at [from] means. */
+    func mention(_ name: String, from: String?) async throws -> RefItem { try await client.mention(.init(query: .init(name: name, from: from))).ok.body.json }
+
     /** What links to [url]: tasks, events, and notes in the drive. */
     func backlinks(_ url: String) async throws -> [RefItem] { try await client.backlinks(.init(query: .init(url: url))).ok.body.json }
     /** A drive file's page in the app (what links to it are written as, matched whatever the host). */

@@ -144,6 +144,11 @@ final class NotePreview {
                 put(.foregroundColor, color(style.accent), from, to)
                 put(.underlineStyle, NSUnderlineStyle.single.rawValue, from, to)
                 put(.noteLink, url, from, to)
+            case let .mention(name):
+                // What it means is asked when it's followed.
+                put(.foregroundColor, color(style.accent), from, to)
+                put(.noteLink, "mention:" + name, from, to)
+                if !editing { hideMarks(s) }
             case let .math(tex, display):
                 if editing {
                     font(NoteCore.code(body * CGFloat(style.mathSourceSize)), from, to)
