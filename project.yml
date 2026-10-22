@@ -47,6 +47,7 @@ targets:
       - package: AssistantAPI
       - target: ShareExtension
       - target: DriveProvider
+      - target: Widget
       - framework: Generated/AssistantCore.xcframework
         embed: false
     settings:
@@ -75,6 +76,9 @@ targets:
             CFBundleURLSchemes: [mid]
           - CFBundleURLName: PLMS
             CFBundleURLSchemes: [plms]
+          # The widget's links: assistant://today, task/<id>, quick-note, capture.
+          - CFBundleURLName: Assistant
+            CFBundleURLSchemes: [assistant]
   ShareExtension:
     type: app-extension
     platform: macOS
@@ -103,6 +107,28 @@ targets:
               NSExtensionActivationSupportsWebURLWithMaxCount: 1
               NSExtensionActivationSupportsImageWithMaxCount: 10
               NSExtensionActivationSupportsFileWithMaxCount: 10
+  # The widget (Today: the next class, what's due, quick note and capture): see Widget/AssistantWidget.swift.
+  Widget:
+    type: app-extension
+    platform: macOS
+    sources: [Widget, Shared]
+    dependencies:
+      - package: AssistantAPI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.syeyoung.assistant.widget
+        PRODUCT_NAME: AssistantWidget
+    entitlements:
+      path: Widget/Widget.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: Assistant
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
   # The drive in Finder (File Provider, like iCloud Drive): see DriveProvider/Provider.swift.
   DriveProvider:
     type: app-extension

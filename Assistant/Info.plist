@@ -64,6 +64,14 @@
 				<string>plms</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Assistant</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>assistant</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>

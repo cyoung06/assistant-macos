@@ -26,10 +26,12 @@
 		0191788D155DCB3C316CC9D5 /* API.swift in Sources */ = {isa = PBXBuildFile; fileRef = A27A7455F4599C3FDD1DDD5F /* API.swift */; };
 		0255F789E9B3D80E16EC879B /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA78FB333562EB6EDBDC451C /* CaptureView.swift */; };
 		077329F349768ACD92DFB12F /* TriageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD24FABEDF7DAAB63817C2C1 /* TriageView.swift */; };
+		09573D0CE25DF22B1A871CAE /* DriveClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85BF8F6CF09B957CE14A0E9A /* DriveClient.swift */; };
 		0EE14E1C1EBB098919D98EE7 /* NotebookCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9552B17333F93C2F294103D9 /* NotebookCheck.swift */; };
 		13697DC683B3C5F3291041A1 /* TriageOutbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B39F65AFF441FF2D45F7126 /* TriageOutbox.swift */; };
 		13EAE8E66F864C5572C361C6 /* NotebookDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97C0D614CC954BB7842F4C37 /* NotebookDocument.swift */; };
 		1468A047BF2B996204913DAE /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38016EC07C40680B0ADE0A2 /* CalendarView.swift */; };
+		1674845ACCEA21E63D68C392 /* Widget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 99E960BEFC66C9E346408EFF /* Widget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		180DFCB339AE09ADAA40422F /* IconButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F52C6CA114F831590B6115D /* IconButton.swift */; };
 		1B6838C956F8063CC2153380 /* Drive.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA07FBE8120B68CF20F71145 /* Drive.swift */; };
 		1BFA5AAE2229F0F0689D41F8 /* LiveConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B111B43286105888C95E27A /* LiveConnection.swift */; };
@@ -46,18 +48,23 @@
 		3C1DEA1C2F11DED16E8ADE74 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 810A10CAB79D31A17ED34718 /* Fonts */; };
 		48F709E60DF5DFCBE3C863C4 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9721ABC546035EFF587925A0 /* ShareViewController.swift */; };
 		4DA3B9B3EBE36068B15538D3 /* DriveClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85BF8F6CF09B957CE14A0E9A /* DriveClient.swift */; };
+		4DB55E44F1F856FBDA306AB5 /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA78FB333562EB6EDBDC451C /* CaptureView.swift */; };
 		5757EA6B96D3279583D27942 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FF889D728C9AC88CCF20C8B /* Item.swift */; };
+		5FC17300F3577F87EB97772A /* MailFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BC6777FEBE104BF6927EF4 /* MailFile.swift */; };
 		5FF34E49D2B742C89440B8A4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B735F17A387FA063D84991C8 /* AppModel.swift */; };
 		617A54EAF669BF59098B1960 /* Enumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9DDC61F8F395E26DF748EBA /* Enumerator.swift */; };
 		6BA8F1DDA494711E00631C0D /* MathTip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62E5B6094C3734A4674A9CE0 /* MathTip.swift */; };
 		7B12431F07F5267B8F7959AF /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA78FB333562EB6EDBDC451C /* CaptureView.swift */; };
 		7E69B804A07A38F89756D3C3 /* AssistantApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69AA7DFFD6F76C5C5DA46DE8 /* AssistantApp.swift */; };
+		81BF9A181FAE739FFA194926 /* Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF9813F4655E59F5FA7A519F /* Tasks.swift */; };
 		84AEB21967AF9500B2808650 /* ProjectScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 854FC7D59E747EF8FF2CEB3B /* ProjectScheduleView.swift */; };
 		880089C802722D49711D48C8 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFDF77BDEB586CABD9FDD6A2 /* MenuBarView.swift */; };
 		8A125BE387BE9195C1DF78FE /* AssistantAPI in Frameworks */ = {isa = PBXBuildFile; productRef = AB9A7C2D34C48FDB2555AEBB /* AssistantAPI */; };
 		8A19FD64B6D06565C64EF09C /* FilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B27157EBD084D06228785EE4 /* FilesView.swift */; };
+		8CDBAEB2A328F56FA8EB9FB7 /* AssistantWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 673FE81248D4097D2D997EF1 /* AssistantWidget.swift */; };
 		8DEA21E3E93FCCCABEEDF9F7 /* API.swift in Sources */ = {isa = PBXBuildFile; fileRef = A27A7455F4599C3FDD1DDD5F /* API.swift */; };
 		906F8613B45C1F646B9A61D3 /* API.swift in Sources */ = {isa = PBXBuildFile; fileRef = A27A7455F4599C3FDD1DDD5F /* API.swift */; };
+		91C8DC28B0B067B74D847D28 /* AssistantAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 7DEDEDA6A620EC4E5C166888 /* AssistantAPI */; };
 		92CE8FCA5BDBDD66D648A0D1 /* TrashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 080FB3FD0DAD23681090B016 /* TrashView.swift */; };
 		942D9103D05EE4AEC27AAEAF /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = F96341E414BBA36470804496 /* Store.swift */; };
 		9F468D4B159F70829975B871 /* AssistantCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60F92B350450B01020B6AC08 /* AssistantCore.swift */; };
@@ -75,6 +82,7 @@
 		DECBBB1F45D12FB48F876350 /* NoteDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0152D8A8F0B3D64B2F303BA4 /* NoteDocument.swift */; };
 		DFB0915F2F854BEAB4F02E3D /* Provider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1F836DDBEDA27A10B24129 /* Provider.swift */; };
 		E3E30A52CF0A457957CDF189 /* MailFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BC6777FEBE104BF6927EF4 /* MailFile.swift */; };
+		E6B6BC8269979CF60DCB2A0D /* API.swift in Sources */ = {isa = PBXBuildFile; fileRef = A27A7455F4599C3FDD1DDD5F /* API.swift */; };
 		E90924A401C7D0C45D93A47B /* SplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E39213900A45F2DF0041D1B9 /* SplitView.swift */; };
 		EAC435AB7262823727463732 /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA78FB333562EB6EDBDC451C /* CaptureView.swift */; };
 		F132ACE8B866700D9ED499E1 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D2D1558234B8865B7A01D4 /* TodayView.swift */; };
@@ -107,6 +115,13 @@
 			remoteGlobalIDString = FEB248EEC6D7B1DC24BBD4DF;
 			remoteInfo = DriveProvider;
 		};
+		A9965DF3BC02B4B6B13023A6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4ADD9DB5B6047DF5BDC8C491 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FE19ADD57F74EBC3FF089FDA;
+			remoteInfo = Widget;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -118,6 +133,7 @@
 			files = (
 				349A15C32C0DAC9BE772F178 /* ShareExtension.appex in Embed Foundation Extensions */,
 				ABB326A26CDB76A22A652607 /* DriveProvider.appex in Embed Foundation Extensions */,
+				1674845ACCEA21E63D68C392 /* Widget.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -126,6 +142,7 @@
 
 /* Begin PBXFileReference section */
 		0152D8A8F0B3D64B2F303BA4 /* NoteDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDocument.swift; sourceTree = "<group>"; };
+		02FB9215530C7E1A5CE8B3BB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		080FB3FD0DAD23681090B016 /* TrashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashView.swift; sourceTree = "<group>"; };
 		0A1A4B8C0DF6503075DECD0D /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A20A9483B2B64425BF1A36D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -134,6 +151,7 @@
 		1FF889D728C9AC88CCF20C8B /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
 		24C0D77C4D7EB6417F566FDF /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		252657F076C22485CC70395F /* NotebookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookView.swift; sourceTree = "<group>"; };
+		473371EDE64ED74370968828 /* Widget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Widget.entitlements; sourceTree = "<group>"; };
 		4B111B43286105888C95E27A /* LiveConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveConnection.swift; sourceTree = "<group>"; };
 		4C8346665AE5364B29483C21 /* NotePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePreview.swift; sourceTree = "<group>"; };
 		51D2D1558234B8865B7A01D4 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
@@ -144,6 +162,7 @@
 		60F92B350450B01020B6AC08 /* AssistantCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantCore.swift; sourceTree = "<group>"; };
 		6249D5871BCA9B2635435B1F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		62E5B6094C3734A4674A9CE0 /* MathTip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathTip.swift; sourceTree = "<group>"; };
+		673FE81248D4097D2D997EF1 /* AssistantWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantWidget.swift; sourceTree = "<group>"; };
 		69AA7DFFD6F76C5C5DA46DE8 /* AssistantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantApp.swift; sourceTree = "<group>"; };
 		6B39F65AFF441FF2D45F7126 /* TriageOutbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriageOutbox.swift; sourceTree = "<group>"; };
 		7A010F9E19EB12E967D560D6 /* AssistantCore.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = AssistantCore.xcframework; path = Generated/AssistantCore.xcframework; sourceTree = "<group>"; };
@@ -160,6 +179,7 @@
 		9721ABC546035EFF587925A0 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		97C0D614CC954BB7842F4C37 /* NotebookDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookDocument.swift; sourceTree = "<group>"; };
 		990A0B3BBDF5B1A42896F9A6 /* NoteEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditor.swift; sourceTree = "<group>"; };
+		99E960BEFC66C9E346408EFF /* Widget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Widget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A27A7455F4599C3FDD1DDD5F /* API.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = API.swift; sourceTree = "<group>"; };
 		A77131F6C2606DE991CD1500 /* DriveProvider.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DriveProvider.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A9DDC61F8F395E26DF748EBA /* Enumerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Enumerator.swift; sourceTree = "<group>"; };
@@ -188,6 +208,14 @@
 			files = (
 				FC45738CCB0DF4B57A414E8A /* AssistantAPI in Frameworks */,
 				27D73E001F8D478595D24A6E /* AssistantCore.xcframework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		40CE157B357602B3BA8D3A19 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				91C8DC28B0B067B74D847D28 /* AssistantAPI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -247,8 +275,19 @@
 				C10CBC59C32F901023B4AB71 /* Assistant.app */,
 				A77131F6C2606DE991CD1500 /* DriveProvider.appex */,
 				0A1A4B8C0DF6503075DECD0D /* ShareExtension.appex */,
+				99E960BEFC66C9E346408EFF /* Widget.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		5BA0003534FB1BA38191BE7D /* Widget */ = {
+			isa = PBXGroup;
+			children = (
+				673FE81248D4097D2D997EF1 /* AssistantWidget.swift */,
+				02FB9215530C7E1A5CE8B3BB /* Info.plist */,
+				473371EDE64ED74370968828 /* Widget.entitlements */,
+			);
+			path = Widget;
 			sourceTree = "<group>";
 		};
 		73AB5C443455A311083B1FAC /* Frameworks */ = {
@@ -315,6 +354,7 @@
 				E23F64AD3142F32F8DDBC232 /* Packages */,
 				C97AFE56D5485B9DAE2FD695 /* Shared */,
 				42144B36766B4991F9C0B127 /* ShareExtension */,
+				5BA0003534FB1BA38191BE7D /* Widget */,
 				73AB5C443455A311083B1FAC /* Frameworks */,
 				574C103B728409E9BADA3C0C /* Products */,
 			);
@@ -395,6 +435,7 @@
 				FF136E4418B23CFCE2514CBD /* PBXTargetDependency */,
 				6C9A0AE290C2CB724CE3CE6E /* PBXTargetDependency */,
 				0A17034064B2024B644C6C00 /* PBXTargetDependency */,
+				F7427532BC1B27D3EE4E7993 /* PBXTargetDependency */,
 			);
 			name = Assistant;
 			packageProductDependencies = (
@@ -403,6 +444,25 @@
 			productName = Assistant;
 			productReference = C10CBC59C32F901023B4AB71 /* Assistant.app */;
 			productType = "com.apple.product-type.application";
+		};
+		FE19ADD57F74EBC3FF089FDA /* Widget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7005B1433C11D7FF09B2A670 /* Build configuration list for PBXNativeTarget "Widget" */;
+			buildPhases = (
+				6A6FB319D2571D3BDCDB7F1D /* Sources */,
+				40CE157B357602B3BA8D3A19 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Widget;
+			packageProductDependencies = (
+				7DEDEDA6A620EC4E5C166888 /* AssistantAPI */,
+			);
+			productName = Widget;
+			productReference = 99E960BEFC66C9E346408EFF /* Widget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		FEB248EEC6D7B1DC24BBD4DF /* DriveProvider */ = {
 			isa = PBXNativeTarget;
@@ -444,6 +504,10 @@
 						DevelopmentTeam = 3L6TQLAH47;
 						ProvisioningStyle = Automatic;
 					};
+					FE19ADD57F74EBC3FF089FDA = {
+						DevelopmentTeam = 3L6TQLAH47;
+						ProvisioningStyle = Automatic;
+					};
 					FEB248EEC6D7B1DC24BBD4DF = {
 						DevelopmentTeam = 3L6TQLAH47;
 						ProvisioningStyle = Automatic;
@@ -469,6 +533,7 @@
 			targets = (
 				7C83E24DF81C0E3609C5E5E2 /* Assistant */,
 				04B2C11CDFF55AD38C5FDC1F /* ShareExtension */,
+				FE19ADD57F74EBC3FF089FDA /* Widget */,
 				FEB248EEC6D7B1DC24BBD4DF /* DriveProvider */,
 				6865FBBA3CF7DBDFEF2DDC35 /* Core */,
 			);
@@ -583,6 +648,19 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6A6FB319D2571D3BDCDB7F1D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E6B6BC8269979CF60DCB2A0D /* API.swift in Sources */,
+				8CDBAEB2A328F56FA8EB9FB7 /* AssistantWidget.swift in Sources */,
+				4DB55E44F1F856FBDA306AB5 /* CaptureView.swift in Sources */,
+				09573D0CE25DF22B1A871CAE /* DriveClient.swift in Sources */,
+				5FC17300F3577F87EB97772A /* MailFile.swift in Sources */,
+				81BF9A181FAE739FFA194926 /* Tasks.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -595,6 +673,11 @@
 			isa = PBXTargetDependency;
 			target = 04B2C11CDFF55AD38C5FDC1F /* ShareExtension */;
 			targetProxy = 0108471C98A7EFD2A01D7218 /* PBXContainerItemProxy */;
+		};
+		F7427532BC1B27D3EE4E7993 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FE19ADD57F74EBC3FF089FDA /* Widget */;
+			targetProxy = A9965DF3BC02B4B6B13023A6 /* PBXContainerItemProxy */;
 		};
 		FF136E4418B23CFCE2514CBD /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -623,6 +706,23 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.syeyoung.assistant.drive;
 				PRODUCT_NAME = AssistantDrive;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		7150649F9905D4C7966452FC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Widget/Widget.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Widget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.syeyoung.assistant.widget;
+				PRODUCT_NAME = AssistantWidget;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -835,6 +935,23 @@
 			};
 			name = Release;
 		};
+		DC2989404448E37B8462F4E7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Widget/Widget.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Widget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.syeyoung.assistant.widget;
+				PRODUCT_NAME = AssistantWidget;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
 		FB5CC9E06BC40E041E07C128 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -885,6 +1002,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		7005B1433C11D7FF09B2A670 /* Build configuration list for PBXNativeTarget "Widget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7150649F9905D4C7966452FC /* Debug */,
+				DC2989404448E37B8462F4E7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		94BC18B1E9B9CE9991C87CC9 /* Build configuration list for PBXNativeTarget "Assistant" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -914,6 +1040,10 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		08F2C8743D1A0E889E78BFA2 /* AssistantAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AssistantAPI;
+		};
+		7DEDEDA6A620EC4E5C166888 /* AssistantAPI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AssistantAPI;
 		};
