@@ -81,7 +81,7 @@ extension NotebookView {
     /** The pen, highlighter and eraser, and the colours: a pill over the page's edge, as on the tablet. */
     private var tools: some View {
         VStack(spacing: 10) {
-            ForEach([(NotebookModel.Tool.pen, "Pen", "pencil"), (.highlighter, "Highlighter", "highlighter"), (.eraser, "Eraser", "eraser")], id: \.1) { tool, name, symbol in
+            ForEach([(NotebookModel.Tool.pen, "Pen", "pencil"), (.highlighter, "Highlighter", "highlighter"), (.fading, "Fading Pen (gone 5 s after you stop)", "scribble.variable"), (.eraser, "Eraser", "eraser")], id: \.1) { tool, name, symbol in
                 Button { model.tool = tool } label: {
                     Image(systemName: symbol)
                         .font(.system(size: 15, weight: .medium))
@@ -127,7 +127,8 @@ private let highlighters: [UInt32] = [0x66ffd600, 0x6634c759, 0x66ff7eb6, 0x6640
 
 @MainActor
 final class NotebookModel: NSObject, ObservableObject, PDFPageOverlayViewProvider {
-    enum Tool { case pen, highlighter, eraser }
+    /** [fading]: a pen whose writing fades 5 s after the last stroke (to point things out); never kept. */
+    enum Tool { case pen, highlighter, fading, eraser }
 
     @Published var status = "Opening…"
     @Published var tool: Tool = .pen
@@ -245,12 +246,12 @@ final class NotebookModel: NSObject, ObservableObject, PDFPageOverlayViewProvide
     // Where it was left (on any device): opened there, with the tool in hand.
     private let place = PlaceKeeper()
     private var placing = true
-    private var toolName: String { switch tool { case .pen: "pen"; case .highlighter: "highlighter"; case .eraser: "eraser" } }
+    private var toolName: String { switch tool { case .pen: "pen"; case .highlighter: "highlighter"; case .fading: "fading"; case .eraser: "eraser" } }
 
     private func restorePlace() async {
         if let (page, t) = try? await AppModel.shared.api.drivePlace(notebook.path) {
             if let page, page < pageIds.count { go(to: pageIds[page]) }
-            switch t { case "pen": tool = .pen; case "highlighter": tool = .highlighter; case "eraser": tool = .eraser; default: break }
+            switch t { case "pen": tool = .pen; case "highlighter": tool = .highlighter; case "fading": tool = .fading; case "eraser": tool = .eraser; default: break }
         }
         placing = false
     }
@@ -345,16 +346,56 @@ final class NotebookModel: NSObject, ObservableObject, PDFPageOverlayViewProvide
 
     /** What a stroke through [points] (x, y, pressure) on [page] will be. */
     func stroke(_ points: [Float], on page: String) -> NotebookStroke {
-        let pen = tool == .pen
+        let pen = tool != .highlighter
         let width: Float = pen ? 0.6 : 9
         return NotebookStroke(id: UUID().uuidString.lowercased(), page: page, tool: pen ? "pen" : "highlighter", color: palette[color % palette.count], width: width, points: points, outline: [outlineOf(points, width: width, pen: pen)], ink: nil, transform: nil)
     }
 
     func put(_ s: NotebookStroke) {
         guard s.points.count >= 3 else { return }
+        // The fading pen's: shown until it fades, not the notebook's.
+        if tool == .fading {
+            fading[s.page, default: []].append(s)
+            redraw(s.page)
+            fadeLater()
+            return
+        }
         notebook.edit([.putStroke(stroke: s)])
         strokes[s.page, default: [:]][s.id] = s
         redraw(s.page)
+    }
+
+    // ---- the fading pen: writing that goes 5 s after the last stroke, never kept ----
+
+    /** The fading pen's writing, by page, until it fades; how much of it shows (1, down to 0 as it fades). */
+    private(set) var fading: [String: [NotebookStroke]] = [:]
+    private(set) var fadingAlpha: CGFloat = 1
+    private var fadeWait: Task<Void, Never>?
+
+    /** Writing with the fading pen again: what's there stays (shown again if fading), the wait starts over. */
+    func keepFading() {
+        fadeWait?.cancel()
+        fadeWait = nil
+        if fadingAlpha != 1 { fadingAlpha = 1; fading.keys.forEach(redraw) }
+    }
+
+    private func fadeLater() {
+        keepFading()
+        fadeWait = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(5))
+            // Faded over a little over half a second, then gone.
+            for step in 1...18 {
+                guard !Task.isCancelled, let self else { return }
+                self.fadingAlpha = 1 - CGFloat(step) / 18
+                self.fading.keys.forEach(self.redraw)
+                try? await Task.sleep(for: .milliseconds(33))
+            }
+            guard !Task.isCancelled, let self else { return }
+            let pages = Array(self.fading.keys)
+            self.fading = [:]
+            self.fadingAlpha = 1
+            pages.forEach(self.redraw)
+        }
     }
 
     /** The eraser went over [at] (the notebook's points) on [page]: strokes within [r] of it go. */
@@ -416,6 +457,13 @@ final class PageInk: NSView {
             ctx.restoreGState()
         }
         for s in (model.strokes[id] ?? [:]).values { draw(s, in: ctx) }
+        if let fading = model.fading[id], !fading.isEmpty {
+            ctx.setAlpha(model.fadingAlpha)
+            ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+            for s in fading { draw(s, in: ctx) }
+            ctx.endTransparencyLayer()
+            ctx.setAlpha(1)
+        }
         if let drawing { draw(model.stroke(drawing, on: id), in: ctx) }
         ctx.restoreGState()
     }
@@ -467,6 +515,7 @@ final class PageInk: NSView {
             rub(to: p)
             return
         }
+        if model.tool == .fading { model.keepFading() }
         drawing = [Float(p.x), Float(p.y), pressure(event)]
         needsDisplay = true
     }
