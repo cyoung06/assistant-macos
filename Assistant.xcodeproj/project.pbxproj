@@ -28,6 +28,7 @@
 		077329F349768ACD92DFB12F /* TriageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD24FABEDF7DAAB63817C2C1 /* TriageView.swift */; };
 		09573D0CE25DF22B1A871CAE /* DriveClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85BF8F6CF09B957CE14A0E9A /* DriveClient.swift */; };
 		0EE14E1C1EBB098919D98EE7 /* NotebookCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9552B17333F93C2F294103D9 /* NotebookCheck.swift */; };
+		1153ECFC92CB08AA3543952D /* PaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9321E28419EFFB72CCEB2891 /* PaletteView.swift */; };
 		13697DC683B3C5F3291041A1 /* TriageOutbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B39F65AFF441FF2D45F7126 /* TriageOutbox.swift */; };
 		13EAE8E66F864C5572C361C6 /* NotebookDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97C0D614CC954BB7842F4C37 /* NotebookDocument.swift */; };
 		1468A047BF2B996204913DAE /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38016EC07C40680B0ADE0A2 /* CalendarView.swift */; };
@@ -174,6 +175,7 @@
 		85BF8F6CF09B957CE14A0E9A /* DriveClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveClient.swift; sourceTree = "<group>"; };
 		907C5C215991FDCCB2EDF98F /* CalendarLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarLayout.swift; sourceTree = "<group>"; };
 		92310E2B3434EB97057F997D /* InitiativesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitiativesView.swift; sourceTree = "<group>"; };
+		9321E28419EFFB72CCEB2891 /* PaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteView.swift; sourceTree = "<group>"; };
 		93CE48D6B5BAA49E8EA2AE63 /* ExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportView.swift; sourceTree = "<group>"; };
 		9552B17333F93C2F294103D9 /* NotebookCheck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookCheck.swift; sourceTree = "<group>"; };
 		9721ABC546035EFF587925A0 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
@@ -330,6 +332,7 @@
 				9552B17333F93C2F294103D9 /* NotebookCheck.swift */,
 				990A0B3BBDF5B1A42896F9A6 /* NoteEditor.swift */,
 				BFC7A44C26FCDF2538EBD0A9 /* NoteEditorCheck.swift */,
+				9321E28419EFFB72CCEB2891 /* PaletteView.swift */,
 				854FC7D59E747EF8FF2CEB3B /* ProjectScheduleView.swift */,
 				576ED3440CE0DE6BAB9FA2E6 /* SettingsView.swift */,
 				E39213900A45F2DF0041D1B9 /* SplitView.swift */,
@@ -636,6 +639,7 @@
 				0EE14E1C1EBB098919D98EE7 /* NotebookCheck.swift in Sources */,
 				13EAE8E66F864C5572C361C6 /* NotebookDocument.swift in Sources */,
 				291EB8F3A7325C5099807962 /* NotebookView.swift in Sources */,
+				1153ECFC92CB08AA3543952D /* PaletteView.swift in Sources */,
 				84AEB21967AF9500B2808650 /* ProjectScheduleView.swift in Sources */,
 				316B36E0DAC8A09C76EFF8B2 /* SettingsView.swift in Sources */,
 				E90924A401C7D0C45D93A47B /* SplitView.swift in Sources */,

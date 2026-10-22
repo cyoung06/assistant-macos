@@ -131,10 +131,10 @@ enum HotKey {
 enum QuickNote {
     private static var windows: [NSWindow] = []
 
-    static func make() {
+    static func make(in projectId: String? = nil) {
         Task {
             do {
-                let path = try await AppModel.shared.api.quickNote(notebook: false)
+                let path = try await AppModel.shared.api.quickNote(notebook: false, projectId: projectId)
                 let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 520), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
                 w.title = (path as NSString).lastPathComponent
                 w.isReleasedWhenClosed = false

@@ -10,6 +10,8 @@ struct ContentView: View {
     @State private var destination: Destination? = .active
     @State private var selected: String?
     @State private var creating = false
+    /** The ⌘K palette. */
+    @State private var palette = false
     /** A project's page shows its files instead of its tasks. */
     @State private var projectFiles = false
 
@@ -66,6 +68,7 @@ struct ContentView: View {
                         .fixedSize()
                     }
                 }
+                ToolbarItem { Button { palette = true } label: { Label("Go to, Make, or Find Anything", systemImage: "magnifyingglass") }.keyboardShortcut("k") }
                 ToolbarItem { Button { creating = true } label: { Label("New task", systemImage: "square.and.pencil") }.keyboardShortcut("n") }
                 ToolbarItem { Button { CapturePanel.shared.show() } label: { Label("Capture", systemImage: "camera.viewfinder") } }
                 ToolbarItem { Button { Task { await model.refresh() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }.keyboardShortcut("r") }
@@ -77,6 +80,13 @@ struct ContentView: View {
                 if let id = selected { TaskDetailView(id: id, select: { selected = $0 }) }
             }
             .inspectorColumnWidth(min: 320, ideal: 380)
+        }
+        .sheet(isPresented: $palette) {
+            PaletteView(commands: paletteCommands) { url in
+                // Ours open here; mail, PLMS and the web where they belong.
+                if !openAppLink(url), let u = URL(string: url) { NSWorkspace.shared.open(u) }
+            }
+            .environmentObject(model)
         }
         .sheet(isPresented: $creating) {
             CreateTaskView(projectId: { if case let .project(id) = destination { return id }; return nil }()) { creating = false }
@@ -91,6 +101,22 @@ struct ContentView: View {
             if openAppLink(url.absoluteString) { return .handled }
             return .systemAction
         })
+    }
+
+    /** What the palette offers besides finding things. */
+    private var paletteCommands: [PaletteCommand] {
+        [
+            PaletteCommand(label: "Go to Today", keywords: "day") { destination = .today },
+            PaletteCommand(label: "Go to Triage", keywords: "inbox") { destination = .triage },
+            PaletteCommand(label: "Go to Active Tasks", keywords: "todo") { destination = .active },
+            PaletteCommand(label: "Go to Backlog") { destination = .backlog },
+            PaletteCommand(label: "Go to Calendar", keywords: "events schedule") { destination = .calendar },
+            PaletteCommand(label: "Go to Files", keywords: "drive") { destination = .files },
+            PaletteCommand(label: "Go to Initiatives") { destination = .initiatives },
+            PaletteCommand(label: "New Task", hint: "⌘N", keywords: "create add todo") { creating = true },
+            PaletteCommand(label: "Quick Note", hint: "⌃⌥N", keywords: "new note write") { QuickNote.make() },
+            PaletteCommand(label: "Capture", hint: "⌥Space", keywords: "screenshot triage") { CapturePanel.shared.show() },
+        ]
     }
 
     @discardableResult
