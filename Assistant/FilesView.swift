@@ -410,6 +410,10 @@ struct FilePreview: View {
     @State private var failed: String?
     /** A PDF written on here, live (see NotebookView). */
     @State private var writing = false
+    /** A course PDF's copy to write on, or (for a copy) its course file, updated since or not. */
+    @State private var annotation: Annotation?
+    @State private var annotating = false
+    @State private var carrying = false
 
     private var kind: DriveKind { driveKind(entry.name, folder: false) }
 
@@ -421,6 +425,10 @@ struct FilePreview: View {
                 Text(driveSize(entry.size)).font(.caption).foregroundStyle(.secondary)
                 if driveReadOnly(entry.path) { Text("From PLMS · read-only").font(.caption).foregroundStyle(.secondary) }
                 Spacer()
+                if kind == .pdf && driveReadOnly(entry.path) {
+                    IconButton(annotation == nil ? "Annotate (write on a copy in the project's Notes)" : "Open My Notes", symbol: annotation == nil ? "pencil.tip.crop.circle.badge.plus" : "pencil.tip.crop.circle") { annotate() }
+                        .disabled(annotating)
+                }
                 if kind == .pdf && !driveReadOnly(entry.path) {
                     IconToggle("Write on It (live with your other devices)", symbol: "pencil.and.scribble", isOn: $writing)
                 }
@@ -429,11 +437,58 @@ struct FilePreview: View {
             }
             .padding(10)
             Divider()
+            if let a = annotation, a.copy == entry.path, a.sourceChanged { updated(a) }
             content.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .onDrag { DriveStore.provider(entry) }
         .task(id: entry) { await load() }
         .onDisappear { player?.pause() }
+    }
+
+    /** Writes on the course PDF in a copy (made the first time), opened ready to write. */
+    private func annotate() {
+        annotating = true
+        Task {
+            defer { annotating = false }
+            do {
+                let a = try await AppModel.shared.api.driveAnnotate(entry.path)
+                store.writeOnOpen.insert(a.copy)
+                NotificationCenter.default.post(name: .driveReveal, object: a.copy)
+            } catch {
+                store.error = error.localizedDescription
+            }
+        }
+    }
+
+    /** The course file was updated on PLMS: carry the writing over to it, or keep the copy as it is. */
+    private func updated(_ a: Annotation) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(.tint)
+            Text("**\(a.source.split(separator: "/").last.map(String.init) ?? a.source)** was updated on PLMS. Carry your writing over? Each page goes to the new page with its text; pages taken out are kept at the end.")
+                .font(.callout).fixedSize(horizontal: false, vertical: true)
+            Spacer()
+            Button(carrying ? "Carrying Over…" : "Carry Over") {
+                carrying = true
+                Task {
+                    defer { carrying = false }
+                    do {
+                        try await AppModel.shared.api.driveCarryOver(a.copy)
+                        annotation = try? await AppModel.shared.api.driveAnnotation(entry.path)
+                        // Shown again as it is now (if not written on live, where it's come in already).
+                        if !writing { await load() }
+                    } catch { store.error = error.localizedDescription }
+                }
+            }
+            .buttonStyle(.borderedProminent).disabled(carrying)
+            Button("Keep as It Is") {
+                Task {
+                    try? await AppModel.shared.api.driveKeepAnnotation(a.copy)
+                    annotation = try? await AppModel.shared.api.driveAnnotation(entry.path)
+                }
+            }
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(Color.accentColor.opacity(0.1))
     }
 
     @ViewBuilder private var content: some View {
@@ -479,7 +534,9 @@ struct FilePreview: View {
 
     private func load() async {
         store.opened(entry.path)
-        file = nil; text = nil; image = nil; pdf = nil; failed = nil; writing = false
+        file = nil; text = nil; image = nil; pdf = nil; failed = nil; annotation = nil
+        writing = store.writeOnOpen.remove(entry.path) != nil
+        if kind == .pdf { Task { annotation = try? await AppModel.shared.api.driveAnnotation(entry.path) } }
         player?.pause(); player = nil
         // Video and audio play as they arrive (the drive serves ranges): not downloaded first.
         if kind == .video || kind == .audio {

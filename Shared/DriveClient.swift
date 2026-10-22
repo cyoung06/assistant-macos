@@ -161,6 +161,25 @@ extension API {
         try await drive("PATCH", "/state", ["path": path], body: try JSONSerialization.data(withJSONObject: change), type: "application/json")
     }
 
+    // ---- course PDFs written on in a copy ----
+
+    /** The copy of the course PDF at [path] to write on: the one made before, or a new one in the project's Notes. */
+    func driveAnnotate(_ path: String) async throws -> Annotation {
+        try JSONDecoder().decode(Annotation.self, from: try await drive("POST", "/annotate", ["path": path]))
+    }
+
+    /** What [path] is part of: a copy and its course file (updated since?), or a course file and its copy; nil: neither. */
+    func driveAnnotation(_ path: String) async throws -> Annotation? {
+        let data = try await drive("GET", "/annotation", ["path": path])
+        return data.isEmpty ? nil : try JSONDecoder().decode(Annotation.self, from: data)
+    }
+
+    /** Carries the writing in the copy at [path] over to its course file's new version. */
+    func driveCarryOver(_ path: String) async throws { _ = try await drive("POST", "/annotation/carry", ["path": path]) }
+
+    /** Keeps the copy at [path] as it is (its course file's update let be). */
+    func driveKeepAnnotation(_ path: String) async throws { _ = try await drive("POST", "/annotation/dismiss", ["path": path]) }
+
     // ---- the trash (deleting moves things there, kept 30 days) ----
 
     /** What's in the trash, latest first. */
@@ -241,6 +260,13 @@ extension API {
 }
 
 private struct FileStatePath: Decodable { let path: String }
+
+/** A copy of a course file to write on: where it is, the course file, and whether that's been updated since. */
+struct Annotation: Decodable, Equatable {
+    let copy: String
+    let source: String
+    let sourceChanged: Bool
+}
 
 /** Something in the trash: where it was ([path]; a folder's ends with "/"), and when it was deleted. */
 struct Trashed: Decodable, Identifiable, Hashable {

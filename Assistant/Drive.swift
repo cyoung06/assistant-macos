@@ -11,6 +11,9 @@ import UniformTypeIdentifiers
 final class DriveStore: ObservableObject {
     static let shared = DriveStore()
 
+    /** Copies just made to write on: they open ready to write. */
+    var writeOnOpen = Set<String>()
+
     @Published private(set) var children: [String: [DriveEntry]] = [:]
     @Published private(set) var entries: [String: DriveEntry] = [:]
     @Published var error: String?
