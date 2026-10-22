@@ -17,6 +17,23 @@ enum DriveDomain {
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in Task { @MainActor in changed() } }
     }
 
+    /**
+     * Where [path] is in Finder (the drive's place under Assistant), each folder on the way listed
+     * first so the system knows them; fails if Assistant isn't on in Finder (System Settings).
+     */
+    static func url(for path: String) async throws -> URL {
+        guard let manager = NSFileProviderManager(for: domain) else { throw CocoaError(.fileNoSuchFile) }
+        let root = try await manager.getUserVisibleURL(for: .rootContainer)
+        return try await Task.detached {
+            var url = root
+            for part in path.split(separator: "/") {
+                _ = try FileManager.default.contentsOfDirectory(atPath: url.path)
+                url = url.appending(path: String(part))
+            }
+            return url
+        }.value
+    }
+
     /** Something may have changed: Finder looks at the folders it has open again. */
     static func changed() {
         NSFileProviderManager(for: domain)?.signalEnumerator(for: .workingSet) { _ in }

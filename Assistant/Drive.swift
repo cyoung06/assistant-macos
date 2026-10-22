@@ -1,6 +1,5 @@
 import AppKit
 import CryptoKit
-import NetFS
 import Foundation
 import UniformTypeIdentifiers
 
@@ -178,16 +177,14 @@ final class DriveStore: ObservableObject {
     }
 
     /**
-     * Opens [e] in the app that handles it, from the drive mounted as a volume (WebDAV, as Finder's
-     * Connect to Server does): what that app saves goes to the drive. The system asks for the
-     * password the first time (and can keep it in the keychain).
+     * Opens [e] in its app from the drive in Finder (Assistant, the File Provider): what that app
+     * saves goes to the drive. With Assistant off in Finder, a copy kept here opens instead.
      */
     func openExternally(_ e: DriveEntry) async {
         do {
-            let volume = try await DriveVolume.mounted(try await api.driveInfo())
-            NSWorkspace.shared.open(volume.appending(path: e.path))
+            NSWorkspace.shared.open(try await DriveDomain.url(for: e.path))
         } catch {
-            self.error = error.localizedDescription
+            do { NSWorkspace.shared.open(try await local(e)) } catch { self.error = error.localizedDescription }
         }
     }
 
@@ -229,34 +226,5 @@ final class DriveStore: ObservableObject {
             }
         }
         return true
-    }
-}
-
-/** The drive as a mounted volume (macOS's own WebDAV client). */
-enum DriveVolume {
-    /** Where the drive at [info]'s address is mounted: an existing mount, or a new one. */
-    static func mounted(_ info: DriveInfo) async throws -> URL {
-        guard info.enabled, let url = URL(string: info.url), let host = url.host else { throw APIError(message: "The drive isn't set up on the server") }
-        let volumes = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: [.volumeURLForRemountingKey], options: [.skipHiddenVolumes]) ?? []
-        if let existing = volumes.first(where: { (try? $0.resourceValues(forKeys: [.volumeURLForRemountingKey]))?.volumeURLForRemounting?.host == host }) {
-            return existing
-        }
-        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
-            // Answered once, whether the call fails at once or its completion reports.
-            var answered = false
-            let done = { (result: Result<URL, Error>) in
-                guard !answered else { return }
-                answered = true
-                continuation.resume(with: result)
-            }
-            var request: AsyncRequestID?
-            // The system's own sign-in sheet (and keychain) for the password.
-            let open = NSMutableDictionary(dictionary: [kNAUIOptionKey: kNAUIOptionAllowUI])
-            let status = NetFSMountURLAsync(url as CFURL, nil, info.username as CFString, nil, open, nil, &request, .main) { status, _, mounts in
-                if status == 0, let path = (mounts as? [String])?.first { done(.success(URL(fileURLWithPath: path, isDirectory: true))) }
-                else { done(.failure(APIError(message: "Couldn't connect to the drive (\(status))"))) }
-            }
-            if status != 0 { done(.failure(APIError(message: "Couldn't connect to the drive (\(status))"))) }
-        }
     }
 }
