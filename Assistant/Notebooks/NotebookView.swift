@@ -81,7 +81,7 @@ extension NotebookView {
     /** The pen, highlighter and eraser, and the colours: a pill over the page's edge, as on the tablet. */
     private var tools: some View {
         VStack(spacing: 10) {
-            ForEach([(NotebookModel.Tool.pen, "Pen", "pencil"), (.highlighter, "Highlighter", "highlighter"), (.fading, "Fading Pen (gone 5 s after you stop)", "scribble.variable"), (.eraser, "Eraser", "eraser")], id: \.1) { tool, name, symbol in
+            ForEach([(NotebookModel.Tool.pen, "Pen", "pencil"), (.highlighter, "Highlighter", "highlighter"), (.fading, "Fading Pen (gone 4 s after you stop)", "scribble.variable"), (.eraser, "Eraser", "eraser")], id: \.1) { tool, name, symbol in
                 Button { model.tool = tool } label: {
                     Image(systemName: symbol)
                         .font(.system(size: 15, weight: .medium))
@@ -127,11 +127,14 @@ private let highlighters: [UInt32] = [0x66ffd600, 0x6634c759, 0x66ff7eb6, 0x6640
 
 @MainActor
 final class NotebookModel: NSObject, ObservableObject, PDFPageOverlayViewProvider {
-    /** [fading]: a pen whose writing fades 5 s after the last stroke (to point things out); never kept. */
+    /** [fading]: a pen whose writing fades 4 s after the last stroke (to point things out); never kept. */
     enum Tool { case pen, highlighter, fading, eraser }
 
     @Published var status = "Opening…"
-    @Published var tool: Tool = .pen
+    @Published var tool: Tool = .pen {
+        // Another tool picked: the fading pen's writing goes now.
+        didSet { if oldValue == .fading && tool != .fading && !fading.isEmpty && fadingAlpha == 1 { fadeLater(after: 0) } }
+    }
     @Published var color = 0
     @Published var style = "plain"
     /** The pages' ids, in order, and the page in view (its index). */
@@ -369,7 +372,7 @@ final class NotebookModel: NSObject, ObservableObject, PDFPageOverlayViewProvide
         redraw(s.page)
     }
 
-    // ---- the fading pen: writing that goes 5 s after the last stroke, never kept ----
+    // ---- the fading pen: writing that goes 4 s after the last stroke, never kept ----
 
     /** The fading pen's writing, by page, until it fades; how much of it shows (1, down to 0 as it fades). */
     private(set) var fading: [String: [NotebookStroke]] = [:]
@@ -388,10 +391,10 @@ final class NotebookModel: NSObject, ObservableObject, PDFPageOverlayViewProvide
         if fadingAlpha != 1 { fadingAlpha = 1; fading.keys.forEach(redraw) }
     }
 
-    private func fadeLater() {
+    private func fadeLater(after: Double = 4) {
         keepFading()
         fadeWait = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(5))
+            try? await Task.sleep(for: .seconds(after))
             // Faded over a little over half a second, then gone.
             for step in 1...18 {
                 guard !Task.isCancelled, let self else { return }
