@@ -161,6 +161,18 @@ extension API {
         try await drive("PATCH", "/state", ["path": path], body: try JSONSerialization.data(withJSONObject: change), type: "application/json")
     }
 
+    // ---- exports: notebooks, PDFs and notes as one PDF, to hand in ----
+
+    /** [request]'s files as one PDF. */
+    func driveExport(_ request: ExportRequest) async throws -> Data {
+        try await drive("POST", "/export", body: try JSONEncoder().encode(request), type: "application/json", timeout: 300)
+    }
+
+    /** [request]'s files as one PDF, saved in the drive at [to] (numbered if taken); where it went. */
+    func driveExportSave(_ request: ExportRequest, to: String) async throws -> String {
+        try JSONDecoder().decode(FileStatePath.self, from: try await drive("POST", "/export/save", ["to": to], body: try JSONEncoder().encode(request), type: "application/json", timeout: 300)).path
+    }
+
     // ---- course PDFs written on in a copy ----
 
     /** The copy of the course PDF at [path] to write on: the one made before, or a new one in the project's Notes. */
@@ -242,9 +254,10 @@ extension API {
     }
 
     @discardableResult
-    private func drive(_ method: String, _ endpoint: String, _ query: [String: String] = [:], body: Data? = nil, type: String? = nil) async throws -> Data {
+    private func drive(_ method: String, _ endpoint: String, _ query: [String: String] = [:], body: Data? = nil, type: String? = nil, timeout: TimeInterval = 60) async throws -> Data {
         var req = URLRequest(url: driveURL(endpoint, query))
         req.httpMethod = method
+        req.timeoutInterval = timeout
         if let type { req.setValue(type, forHTTPHeaderField: "Content-Type") }
         let (data, response) = if let body { try await URLSession.shared.upload(for: req, from: body) } else { try await URLSession.shared.data(for: req) }
         try check(response, data)
@@ -260,6 +273,14 @@ extension API {
 }
 
 private struct FileStatePath: Decodable { let path: String }
+
+/** What to export: files in order (a PDF's [pages] from 0; nil: all), after a cover if there's one. */
+struct ExportRequest: Encodable {
+    struct Item: Encodable { let path: String; let pages: [Int]? }
+    struct Cover: Encodable { let title: String; let subtitle: String?; let author: String?; let date: String? }
+    let items: [Item]
+    let cover: Cover?
+}
 
 /** A copy of a course file to write on: where it is, the course file, and whether that's been updated since. */
 struct Annotation: Decodable, Equatable {

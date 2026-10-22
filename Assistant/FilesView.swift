@@ -32,6 +32,8 @@ struct FilesView: View {
     @State private var newName = ""
     @State private var naming: String?
     @State private var showingTrash = false
+    /** The export sheet: for this folder, starting with that file. */
+    @State private var exporting: ExportTarget?
 
     private var top: String { root ?? "Projects/" }
     private var selected: DriveEntry? { selection.flatMap { store.entries[$0] } }
@@ -79,6 +81,7 @@ struct FilesView: View {
             }
         }
         .sheet(isPresented: $showingTrash) { TrashView() }
+        .sheet(item: $exporting) { t in ExportView(folder: t.folder, first: t.first) { saved in selection = saved } }
         .alert("Rename", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Name", text: $newName)
             Button("Rename") { if let e = renaming { Task { await store.rename(e, to: newName) } } }
@@ -294,6 +297,11 @@ struct FilesView: View {
             Button("New Folder…", systemImage: "folder.badge.plus") { newName = ""; naming = target }
             Button("New Markdown File", systemImage: "doc.badge.plus") { newMarkdown(in: target) }
             Button("Upload…", systemImage: "arrow.up.doc") { upload(into: target) }
+        }
+        // One PDF to hand in, of this folder's (or the file's folder's) notebooks, PDFs and notes.
+        if e == nil || e!.folder || [.pdf, .markdown].contains(driveKind(e!.name, folder: false)) {
+            Divider()
+            Button("Export as PDF…", systemImage: "doc.richtext") { exporting = ExportTarget(folder: target, first: e.flatMap { $0.folder ? nil : $0.path }) }
         }
         if let e {
             Divider()

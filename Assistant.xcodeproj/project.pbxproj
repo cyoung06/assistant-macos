@@ -69,6 +69,7 @@
 		AF4B40C2D165221D3039E174 /* MailFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BC6777FEBE104BF6927EF4 /* MailFile.swift */; };
 		AFB80A56CF45C4A1DCD927CC /* DriveClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85BF8F6CF09B957CE14A0E9A /* DriveClient.swift */; };
 		B90E5D7EE553D3D99C799B39 /* CalendarLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 907C5C215991FDCCB2EDF98F /* CalendarLayout.swift */; };
+		BAA2339C9EC23E2AD3341195 /* ExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93CE48D6B5BAA49E8EA2AE63 /* ExportView.swift */; };
 		C60E362C5D9BBDBD272D3A78 /* NoteEditorCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC7A44C26FCDF2538EBD0A9 /* NoteEditorCheck.swift */; };
 		DEAA3CBB62477FF1241A502C /* DriveDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = E70C85F1D0A801931F056B50 /* DriveDomain.swift */; };
 		DECBBB1F45D12FB48F876350 /* NoteDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0152D8A8F0B3D64B2F303BA4 /* NoteDocument.swift */; };
@@ -152,6 +153,7 @@
 		85BF8F6CF09B957CE14A0E9A /* DriveClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveClient.swift; sourceTree = "<group>"; };
 		907C5C215991FDCCB2EDF98F /* CalendarLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarLayout.swift; sourceTree = "<group>"; };
 		92310E2B3434EB97057F997D /* InitiativesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitiativesView.swift; sourceTree = "<group>"; };
+		93CE48D6B5BAA49E8EA2AE63 /* ExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportView.swift; sourceTree = "<group>"; };
 		9552B17333F93C2F294103D9 /* NotebookCheck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookCheck.swift; sourceTree = "<group>"; };
 		9721ABC546035EFF587925A0 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		97C0D614CC954BB7842F4C37 /* NotebookDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookDocument.swift; sourceTree = "<group>"; };
@@ -278,6 +280,7 @@
 				FA07FBE8120B68CF20F71145 /* Drive.swift */,
 				E70C85F1D0A801931F056B50 /* DriveDomain.swift */,
 				53058ED33125BBC098EFAC5B /* EventEditor.swift */,
+				93CE48D6B5BAA49E8EA2AE63 /* ExportView.swift */,
 				B27157EBD084D06228785EE4 /* FilesView.swift */,
 				7F52C6CA114F831590B6115D /* IconButton.swift */,
 				0A20A9483B2B64425BF1A36D /* Info.plist */,
@@ -548,6 +551,7 @@
 				2625BBA71F9CEFBA5B1DCF1F /* DriveClient.swift in Sources */,
 				DEAA3CBB62477FF1241A502C /* DriveDomain.swift in Sources */,
 				33BE591F4DBF41FEB719E955 /* EventEditor.swift in Sources */,
+				BAA2339C9EC23E2AD3341195 /* ExportView.swift in Sources */,
 				8A19FD64B6D06565C64EF09C /* FilesView.swift in Sources */,
 				180DFCB339AE09ADAA40422F /* IconButton.swift in Sources */,
 				FBE5249ABA34837DB5971E8F /* InitiativesView.swift in Sources */,
