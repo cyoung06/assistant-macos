@@ -52,6 +52,9 @@ struct TriageView: View {
         .focusEffectDisabled()
         .onAppear { focused = true }
         .onKeyPress(characters: CharacterSet(charactersIn: "jk13")) { press in key(press.characters) }
+        // J and K come as the arrow keys (see Keys), as everywhere.
+        .onKeyPress(.downArrow) { key("j") }
+        .onKeyPress(.upArrow) { key("k") }
         .task {
             // While the model is reading, look again every few seconds.
             while !Task.isCancelled {

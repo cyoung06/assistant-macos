@@ -10,8 +10,9 @@ struct ContentView: View {
     @State private var destination: Destination? = .active
     @State private var selected: String?
     @State private var creating = false
-    /** The ⌘K palette. */
+    /** The ⌘K palette, and the keys' list (?). */
     @State private var palette = false
+    @State private var shortcuts = false
     /** A project's page shows its files instead of its tasks. */
     @State private var projectFiles = false
 
@@ -80,6 +81,18 @@ struct ContentView: View {
                 if let id = selected { TaskDetailView(id: id, select: { selected = $0 }) }
             }
             .inspectorColumnWidth(min: 320, ideal: 380)
+        }
+        .sheet(isPresented: $shortcuts) { ShortcutsView() }
+        .onAppear {
+            let keys = Keys.shared
+            keys.newTask = { creating = true }
+            keys.go = { destination = $0 }
+            keys.showList = { shortcuts = true }
+            keys.markDone = {
+                guard let id = selected, let t = model.data.tasks.first(where: { $0.id == id }) else { return }
+                Task { await model.change(t, ["status": t.closed ? "todo" : "done"]) }
+            }
+            keys.start()
         }
         .sheet(isPresented: $palette) {
             PaletteView(commands: paletteCommands) { url in

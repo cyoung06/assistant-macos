@@ -51,6 +51,7 @@
 		4DA3B9B3EBE36068B15538D3 /* DriveClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85BF8F6CF09B957CE14A0E9A /* DriveClient.swift */; };
 		4DB55E44F1F856FBDA306AB5 /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA78FB333562EB6EDBDC451C /* CaptureView.swift */; };
 		5757EA6B96D3279583D27942 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FF889D728C9AC88CCF20C8B /* Item.swift */; };
+		5A6E93433983BC7C94D62482 /* Keys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E135C6FA07FB5E8812B946D /* Keys.swift */; };
 		5FC17300F3577F87EB97772A /* MailFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BC6777FEBE104BF6927EF4 /* MailFile.swift */; };
 		5FF34E49D2B742C89440B8A4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B735F17A387FA063D84991C8 /* AppModel.swift */; };
 		617A54EAF669BF59098B1960 /* Enumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9DDC61F8F395E26DF748EBA /* Enumerator.swift */; };
@@ -155,6 +156,7 @@
 		473371EDE64ED74370968828 /* Widget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Widget.entitlements; sourceTree = "<group>"; };
 		4B111B43286105888C95E27A /* LiveConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveConnection.swift; sourceTree = "<group>"; };
 		4C8346665AE5364B29483C21 /* NotePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePreview.swift; sourceTree = "<group>"; };
+		4E135C6FA07FB5E8812B946D /* Keys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keys.swift; sourceTree = "<group>"; };
 		51D2D1558234B8865B7A01D4 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
 		53058ED33125BBC098EFAC5B /* EventEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEditor.swift; sourceTree = "<group>"; };
 		5729CFAE9BD9883BD1B3EF82 /* DriveProvider.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DriveProvider.entitlements; sourceTree = "<group>"; };
@@ -328,6 +330,7 @@
 				7F52C6CA114F831590B6115D /* IconButton.swift */,
 				0A20A9483B2B64425BF1A36D /* Info.plist */,
 				92310E2B3434EB97057F997D /* InitiativesView.swift */,
+				4E135C6FA07FB5E8812B946D /* Keys.swift */,
 				CFDF77BDEB586CABD9FDD6A2 /* MenuBarView.swift */,
 				9552B17333F93C2F294103D9 /* NotebookCheck.swift */,
 				990A0B3BBDF5B1A42896F9A6 /* NoteEditor.swift */,
@@ -626,6 +629,7 @@
 				8A19FD64B6D06565C64EF09C /* FilesView.swift in Sources */,
 				180DFCB339AE09ADAA40422F /* IconButton.swift in Sources */,
 				FBE5249ABA34837DB5971E8F /* InitiativesView.swift in Sources */,
+				5A6E93433983BC7C94D62482 /* Keys.swift in Sources */,
 				34BE3EB388AF3285390ABDB1 /* LiveCache.swift in Sources */,
 				1BFA5AAE2229F0F0689D41F8 /* LiveConnection.swift in Sources */,
 				E3E30A52CF0A457957CDF189 /* MailFile.swift in Sources */,
