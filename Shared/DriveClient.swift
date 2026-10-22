@@ -172,6 +172,17 @@ extension API {
         return try JSONDecoder().decode(FileStatePath.self, from: data).path
     }
 
+    /**
+     * What was shared, put in a project (nil: No project): [kind] "file" puts the uploads
+     * ([attachmentIds]) in its folder; "note" makes a note in its Notes with them beside it. Where it went.
+     */
+    func shareToProject(kind: String, projectId: String?, title: String, text: String, attachmentIds: [String]) async throws -> [String] {
+        var body: [String: Any] = ["kind": kind, "title": title, "text": text, "attachmentIds": attachmentIds]
+        if let projectId { body["projectId"] = projectId }
+        let data = try await drive("POST", "/share", body: try JSONSerialization.data(withJSONObject: body), type: "application/json")
+        return ((try JSONSerialization.jsonObject(with: data) as? [String: Any])?["paths"] as? [String]) ?? []
+    }
+
     // ---- exports: notebooks, PDFs and notes as one PDF, to hand in ----
 
     /** [request]'s files as one PDF. */

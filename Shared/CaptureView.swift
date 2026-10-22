@@ -28,6 +28,8 @@ struct CaptureView: View {
     var onDone: () -> Void
 
     @State private var mode = 0
+    /** Into a project: as a note (in its Notes, with the files beside it) rather than files into its folder. */
+    @State private var asNote = false
     @State private var title = ""
     @State private var due: Due?
     @State private var projectId: String?
@@ -41,6 +43,7 @@ struct CaptureView: View {
             Picker("", selection: $mode) {
                 Text("To Triage").tag(0)
                 Text("Quick task").tag(1)
+                Text("Into a project").tag(2)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -49,18 +52,27 @@ struct CaptureView: View {
                 ScrollView(.horizontal) {
                     HStack {
                         ForEach(images) { img in
-                            if let i = img.image {
-                                Image(nsImage: i).resizable().scaledToFill().frame(width: 90, height: 64).clipped().cornerRadius(6)
-                                    .overlay(alignment: .topTrailing) {
-                                        Button { images.removeAll { $0.id == img.id } } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.plain).padding(2)
-                                    }
+                            Group {
+                                if let i = img.image {
+                                    Image(nsImage: i).resizable().scaledToFill().frame(width: 90, height: 64).clipped().cornerRadius(6)
+                                } else {
+                                    // Not an image: the file, by name.
+                                    Label(img.name, systemImage: "doc").font(.caption).lineLimit(2).padding(6).frame(width: 120, height: 64).background(.background.secondary, in: RoundedRectangle(cornerRadius: 6))
+                                }
+                            }
+                            .overlay(alignment: .topTrailing) {
+                                Button { images.removeAll { $0.id == img.id } } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.plain).padding(2)
                             }
                         }
                     }
                 }
             }
 
-            if mode == 0 { triage } else { quickTask }
+            switch mode {
+            case 0: triage
+            case 1: quickTask
+            default: intoProject
+            }
 
             if let error { Text(error).foregroundStyle(.red).font(.callout) }
         }
@@ -74,7 +86,8 @@ struct CaptureView: View {
             projects = (try? await api.projects()) ?? []
             if !shared.isEmpty { await take(shared) }
             if let mail { useMail(mail) } else if title.isEmpty { await prefill() }
-            if !images.isEmpty { mode = 1 }
+            // Files that aren't pictures (a PDF): most likely for a project's folder.
+            if !images.isEmpty { mode = images.contains { !$0.mimeType.hasPrefix("image/") } ? 2 : 1 }
         }
     }
 
@@ -149,6 +162,49 @@ struct CaptureView: View {
         } catch { self.error = error.localizedDescription }
     }
 
+    // ---- into a project ---------------------------------------------------------------
+
+    private var intoProject: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Picker("", selection: $projectId) {
+                    Text("No project").tag(String?.none)
+                    ForEach(projects, id: \.id) { p in Text(p.name).tag(Optional(p.id)) }
+                }
+                .labelsHidden().frame(maxWidth: 220)
+                Picker("", selection: $asNote) {
+                    Text("Files").tag(false)
+                    Text("Note").tag(true)
+                }
+                .pickerStyle(.segmented).labelsHidden().fixedSize()
+                .disabled(images.isEmpty)
+            }
+            if asNote || images.isEmpty {
+                TextField("Title", text: $title)
+                TextField("Text (optional)", text: $text, axis: .vertical).lineLimit(2...6)
+            }
+            HStack {
+                Text(asNote || images.isEmpty ? "A note in the project's Notes" + (images.isEmpty ? "" : ", with the \(images.count) file(s) beside it") : "\(images.count) file(s) into the project's folder")
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("Cancel", action: onDone).keyboardShortcut(.cancelAction)
+                Button(busy ? "Saving…" : "Save") { Task { await saveToProject() } }
+                    .keyboardShortcut(.defaultAction).disabled(busy || (images.isEmpty && text.isEmpty && title.isEmpty))
+            }
+        }
+    }
+
+    private func saveToProject() async {
+        busy = true
+        error = nil
+        defer { busy = false }
+        do {
+            let ids = try await uploadImages()
+            _ = try await api.shareToProject(kind: asNote || images.isEmpty ? "note" : "file", projectId: projectId, title: title, text: text, attachmentIds: ids)
+            onDone()
+        } catch { self.error = error.localizedDescription }
+    }
+
     // ---- triage ---------------------------------------------------------------------
 
     /** Sends it to Triage and closes: the model reads it in the background, and its suggestions wait there. */
@@ -195,9 +251,10 @@ struct CaptureView: View {
                 return
             } else if p.hasItemConformingToTypeIdentifier(UTType.image.identifier), let data = await p.imageData() {
                 images.append(CapturedImage(data: data, name: "screenshot.png", mimeType: "image/png"))
-            } else if p.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier), let url = try? await p.loadURL(), let data = try? Data(contentsOf: url),
-                      let type = UTType(filenameExtension: url.pathExtension), type.conforms(to: .image) {
-                images.append(CapturedImage(data: data, name: url.lastPathComponent, mimeType: type.preferredMIMEType ?? "image/png"))
+            } else if p.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier), let url = try? await p.loadURL(), url.isFileURL, let data = try? Data(contentsOf: url) {
+                // Any file (a PDF, a document): an image is shown, the rest by name.
+                let type = UTType(filenameExtension: url.pathExtension)
+                images.append(CapturedImage(data: data, name: url.lastPathComponent, mimeType: type?.preferredMIMEType ?? "application/octet-stream"))
             } else if let s = try? await p.loadString() {
                 text = text.isEmpty ? s : text + "\n" + s
             }
