@@ -18,10 +18,18 @@ final class NoteDocument {
 
     /** As this Mac last had it (opened from at once, offline too; see [LiveCache]). */
     private let cache: LiveCache
-    private let doc: SyncDoc
+    /** Replaced (before connecting) if what's kept turns out to be another document's. */
+    private var doc: SyncDoc
     private var opened: CheckedContinuation<String, Error>?
     private var connection: LiveConnection!
     private var saving: Task<Void, Never>?
+
+    /** Which document what's kept is: noted once the server's is here. */
+    private func keepEpoch() {
+        Task { [path, cache] in
+            if let now = try? await AppModel.shared.api.syncEpoch(path), let now { cache.epoch = now }
+        }
+    }
 
     /** Keeps the note on this Mac a moment after it changes (here or elsewhere). */
     private func keepSoon() {
@@ -40,7 +48,7 @@ final class NoteDocument {
         self.remote = remote
         cache = LiveCache(path: path)
         doc = cache.load().flatMap { try? SyncDoc.fromState(state: $0) } ?? SyncDoc()
-        connection = LiveConnection(path: path, greeting: { [doc] in doc.start() }, receive: { [weak self] in try self?.receive($0) }) { [weak self] state, message in
+        connection = LiveConnection(path: path, greeting: { [weak self] in self?.doc.start() ?? Data() }, receive: { [weak self] in try self?.receive($0) }) { [weak self] state, message in
             guard let self else { return }
             if state == "error" {
                 // Moved or deleted: what's kept here is no one's now.
@@ -59,6 +67,7 @@ final class NoteDocument {
         let got = try doc.receive(message: bytes)
         if !got.changes.isEmpty, opened == nil { remote(got.changes) }
         if !got.changes.isEmpty { keepSoon() }
+        if LiveConnection.isSyncStep2(bytes) { keepEpoch() }
         if let c = opened, LiveConnection.isSyncStep2(bytes) {
             opened = nil
             c.resume(returning: doc.text())
@@ -74,6 +83,11 @@ final class NoteDocument {
             guard let read = try await api.driveRead(path) else { throw APIError(message: "Couldn't read \(path)") }
             status("readonly", nil)
             return String(decoding: read.data, as: UTF8.self)
+        }
+        // What's kept is used only while it's still this path's document (not one deleted since and made again).
+        if !(await cache.stillCurrent(path)) {
+            cache.forget()
+            doc = SyncDoc()
         }
         // Kept here: shown at once, what's changed since coming in as it does.
         if cache.load() != nil {

@@ -446,7 +446,7 @@ struct FilePreview: View {
         } else if let file {
             switch kind {
             case .pdf:
-                if let pdf { PDFPreview(document: pdf) } else { QuickLookPreview(url: file) }
+                if let pdf { PDFPreview(document: pdf, path: entry.path) } else { QuickLookPreview(url: file) }
             case .image:
                 if let image { ScrollView([.horizontal, .vertical]) { Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: image.size.width) }.padding() }
                 else { QuickLookPreview(url: file) }
@@ -508,20 +508,62 @@ struct FilePreview: View {
     }
 }
 
+/** A PDF, opened at the page it was left at (on any device), the page kept as it turns. */
 private struct PDFPreview: NSViewRepresentable {
     let document: PDFDocument
+    let path: String
 
     func makeNSView(context: Context) -> PDFView {
         let view = PDFView()
         view.autoScales = true
         view.displayMode = .singlePageContinuous
         view.document = document
+        context.coordinator.attach(view, path: path)
         return view
     }
 
     func updateNSView(_ view: PDFView, context: Context) {
-        if view.document !== document { view.document = document }
+        if view.document !== document { view.document = document; context.coordinator.attach(view, path: path) }
     }
+
+    func makeCoordinator() -> PlaceKeeper { PlaceKeeper() }
+}
+
+/** Puts a PDF view at the page its file was left at, and keeps the page as it turns. */
+@MainActor
+final class PlaceKeeper {
+    private var observer: NSObjectProtocol?
+    private var keeping: Task<Void, Never>?
+    private var placing = false
+
+    func attach(_ view: PDFView, path: String) {
+        observer.map(NotificationCenter.default.removeObserver)
+        placing = true
+        Task { @MainActor in
+            if let page = try? await AppModel.shared.api.drivePlace(path).page, let p = view.document?.page(at: page) { view.go(to: p) }
+            placing = false
+        }
+        observer = NotificationCenter.default.addObserver(forName: .PDFViewPageChanged, object: view, queue: .main) { [weak self, weak view] _ in
+            MainActor.assumeIsolated {
+                guard let self, !self.placing, let view, let page = view.currentPage, let i = view.document?.index(for: page) else { return }
+                self.keep(path, page: i)
+            }
+        }
+    }
+
+    /** [page] kept a moment after it's turned to. */
+    func keep(_ path: String, page: Int, tool: String? = nil) {
+        keeping?.cancel()
+        keeping = Task {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            guard !Task.isCancelled else { return }
+            var change: [String: Any] = ["page": page]
+            if let tool { change["tool"] = tool }
+            try? await AppModel.shared.api.driveChangeState(path, change)
+        }
+    }
+
+    deinit { observer.map(NotificationCenter.default.removeObserver) }
 }
 
 private struct QuickLookPreview: NSViewRepresentable {

@@ -177,6 +177,7 @@ final class NotebookModel: NSObject, ObservableObject, PDFPageOverlayViewProvide
             try await notebook.open()
             status = "Live"
             await rebuild()
+            await restorePlace()
         } catch {
             status = error.localizedDescription
         }
@@ -238,6 +239,20 @@ final class NotebookModel: NSObject, ObservableObject, PDFPageOverlayViewProvide
     func scrolled() {
         guard let view, let page = view.currentPage, let i = view.document?.index(for: page) else { return }
         if current != i { current = i }
+        if !placing { place.keep(notebook.path, page: i, tool: toolName) }
+    }
+
+    // Where it was left (on any device): opened there, with the tool in hand.
+    private let place = PlaceKeeper()
+    private var placing = true
+    private var toolName: String { switch tool { case .pen: "pen"; case .highlighter: "highlighter"; case .eraser: "eraser" } }
+
+    private func restorePlace() async {
+        if let (page, t) = try? await AppModel.shared.api.drivePlace(notebook.path) {
+            if let page, page < pageIds.count { go(to: pageIds[page]) }
+            switch t { case "pen": tool = .pen; case "highlighter": tool = .highlighter; case "eraser": tool = .eraser; default: break }
+        }
+        placing = false
     }
 
     private var blanks: [String: PDFDocument] = [:]

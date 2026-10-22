@@ -135,6 +135,27 @@ extension API {
         try JSONDecoder().decode([FileStatePath].self, from: try await drive("GET", "/recent", ["limit": String(limit)])).map(\.path)
     }
 
+    /**
+     * Which document [path]'s live state is now (nil: none). Throws if the server can't be asked
+     * (quickly: it's asked before opening what's kept).
+     */
+    func syncEpoch(_ path: String) async throws -> String?? {
+        var c = URLComponents(url: base.appending(path: "api/v1/sync/epoch"), resolvingAgainstBaseURL: false)!
+        c.queryItems = [URLQueryItem(name: "doc", value: path)]
+        c.percentEncodedQuery = c.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+        var req = URLRequest(url: c.url!, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 3)
+        req.httpMethod = "GET"
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw APIError(message: "no epoch") }
+        return .some(((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["epoch"] as? String)
+    }
+
+    /** Where a PDF was left: its page (from 0) and the tool in hand, if known. */
+    func drivePlace(_ path: String) async throws -> (page: Int?, tool: String?) {
+        let o = (try JSONSerialization.jsonObject(with: try await drive("GET", "/state", ["path": path]))) as? [String: Any] ?? [:]
+        return (o["page"] as? Int, o["tool"] as? String)
+    }
+
     /** Changes what's kept about [path] (what's given is set; the rest stays). */
     func driveChangeState(_ path: String, _ change: [String: Any]) async throws {
         try await drive("PATCH", "/state", ["path": path], body: try JSONSerialization.data(withJSONObject: change), type: "application/json")

@@ -29,6 +29,27 @@ struct LiveCache {
     /** Keeps [state], whole or not at all. */
     func save(_ state: Data) { try? state.write(to: file, options: .atomic) }
 
-    /** Lets go of it (the file was moved or deleted: what's kept is no one's any more). */
-    func forget() { try? FileManager.default.removeItem(at: file) }
+    /** Which document it's a copy of (the server's epoch for the path when it was kept). */
+    var epoch: String? {
+        get { (try? String(contentsOf: epochFile, encoding: .utf8)).flatMap { $0.isEmpty ? nil : $0 } }
+        nonmutating set { if let newValue { try? newValue.write(to: epochFile, atomically: true, encoding: .utf8) } else { try? FileManager.default.removeItem(at: epochFile) } }
+    }
+
+    private var epochFile: URL { file.deletingPathExtension().appendingPathExtension("epoch") }
+
+    /** Lets go of it (the file was moved or deleted, or isn't that document any more: what's kept is no one's). */
+    func forget() {
+        try? FileManager.default.removeItem(at: file)
+        epoch = nil
+    }
+
+    /**
+     * Whether what's kept is still the path's document there: false if the server says another one
+     * is (or none); true if it agrees, or can't be asked (offline: what's kept is all there is).
+     */
+    func stillCurrent(_ path: String) async -> Bool {
+        guard let kept = epoch else { return load() == nil }
+        guard let now = try? await AppModel.shared.api.syncEpoch(path) else { return true }
+        return now == kept
+    }
 }
