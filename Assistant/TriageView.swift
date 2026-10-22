@@ -172,7 +172,7 @@ private struct Fold: View {
     }
 }
 
-private let triageSources = ["share": "Shared", "capture": "Captured", "addin": "From Outlook", "mail": "Mail", "chatgpt": "From ChatGPT"]
+private let triageSources = ["share": "Shared", "capture": "Captured", "addin": "From Outlook", "mail": "Mail", "chatgpt": "From ChatGPT", "plms": "PLMS"]
 
 /** One input: where it came from, its screenshots, the model's reason, and what's inside. */
 private struct InputCard<Content: View>: View {
