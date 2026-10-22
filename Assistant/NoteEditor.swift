@@ -478,6 +478,8 @@ struct NoteView: View {
     @Environment(\.openWindow) private var openWindow
     /** In a window of its own (no "open in a new window" there). */
     var windowed = false
+    /** Opened to write in, at the end (a quick note: its heading is the class and day). */
+    var writing = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -506,6 +508,10 @@ struct NoteView: View {
         .task(id: path) {
             store.opened(path)
             await editor.open(path)
+            if writing {
+                editor.setEditing(true)
+                editor.textView.setSelectedRange(NSRange(location: (editor.textView.string as NSString).length, length: 0))
+            }
         }
         // Leaving the note (another file, Files or the window closed): let go of it.
         .onDisappear { Task { await editor.close() } }

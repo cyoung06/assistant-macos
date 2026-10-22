@@ -27,6 +27,7 @@ struct MenuBarView: View {
             Divider()
             HStack {
                 Button("Capture… ⌥Space") { CapturePanel.shared.show() }
+                Button("Quick Note ⌃⌥N") { QuickNote.make() }
                 Spacer()
                 Button("Open") { openWindow(id: "main"); NSApp.activate() }
             }

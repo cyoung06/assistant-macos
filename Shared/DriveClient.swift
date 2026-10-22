@@ -161,6 +161,15 @@ extension API {
         try await drive("PATCH", "/state", ["path": path], body: try JSONSerialization.data(withJSONObject: change), type: "application/json")
     }
 
+    /** A new note (or notebook page) for the class on now, in its project's Notes; where it is. */
+    func quickNote(notebook: Bool) async throws -> String {
+        var req = URLRequest(url: base.appending(path: "api/v1/quick-note").appending(queryItems: [URLQueryItem(name: "kind", value: notebook ? "notebook" : "note")]))
+        req.httpMethod = "POST"
+        let (data, response) = try await URLSession.shared.data(for: req)
+        try check(response, data)
+        return try JSONDecoder().decode(FileStatePath.self, from: data).path
+    }
+
     // ---- exports: notebooks, PDFs and notes as one PDF, to hand in ----
 
     /** [request]'s files as one PDF. */

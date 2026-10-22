@@ -16,6 +16,7 @@ struct AssistantApp: App {
         .commands {
             CommandGroup(after: .newItem) {
                 Button("Capture…") { CapturePanel.shared.show() }.keyboardShortcut(" ", modifiers: .option)
+                Button("Quick Note") { QuickNote.make() }.keyboardShortcut("n", modifiers: [.control, .option])
             }
         }
 
@@ -102,18 +103,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
 }
 
-/** ⌥Space from anywhere opens Capture (Carbon hot keys need no accessibility permission). */
+/**
+ * From anywhere: ⌥Space opens Capture, ⌃⌥N a quick note (Carbon hot keys need no accessibility
+ * permission).
+ */
 enum HotKey {
-    private static var ref: EventHotKeyRef?
+    private static var refs: [EventHotKeyRef?] = []
 
     static func register() {
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
-            DispatchQueue.main.async { CapturePanel.shared.show() }
+        InstallEventHandler(GetApplicationEventTarget(), { _, event, _ in
+            var id = EventHotKeyID()
+            GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &id)
+            DispatchQueue.main.async { if id.id == 2 { QuickNote.make() } else { CapturePanel.shared.show() } }
             return noErr
         }, 1, &spec, nil, nil)
-        let id = EventHotKeyID(signature: OSType(0x4153_5354), id: 1) // "ASST"
-        RegisterEventHotKey(UInt32(kVK_Space), UInt32(optionKey), id, GetApplicationEventTarget(), 0, &ref)
+        for (n, key, mods) in [(UInt32(1), kVK_Space, optionKey), (2, kVK_ANSI_N, controlKey | optionKey)] {
+            var ref: EventHotKeyRef?
+            RegisterEventHotKey(UInt32(key), UInt32(mods), EventHotKeyID(signature: OSType(0x4153_5354), id: n), GetApplicationEventTarget(), 0, &ref) // "ASST"
+            refs.append(ref)
+        }
+    }
+}
+
+/** A quick note for the class on now (in its project's Notes), in a window of its own, to write in. */
+@MainActor
+enum QuickNote {
+    private static var windows: [NSWindow] = []
+
+    static func make() {
+        Task {
+            do {
+                let path = try await AppModel.shared.api.quickNote(notebook: false)
+                let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 520), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
+                w.title = (path as NSString).lastPathComponent
+                w.isReleasedWhenClosed = false
+                w.contentViewController = NSHostingController(rootView: NoteView(path: path, windowed: true, writing: true).environmentObject(AppModel.shared))
+                w.center()
+                w.makeKeyAndOrderFront(nil)
+                NSApp.activate()
+                windows.removeAll { !$0.isVisible }
+                windows.append(w)
+            } catch {
+                AppModel.shared.error = "Couldn't make a quick note: \(error.localizedDescription)"
+            }
+        }
     }
 }
 
