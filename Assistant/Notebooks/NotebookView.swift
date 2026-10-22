@@ -93,7 +93,7 @@ extension NotebookView {
                 .help(name)
                 .accessibilityLabel(name)
             }
-            if model.tool != .eraser {
+            if model.tool != .eraser && model.tool != .fading {
                 Divider().frame(width: 22)
                 ForEach(Array(model.palette.enumerated()), id: \.offset) { i, argb in
                     Button { model.color = i } label: {
@@ -346,6 +346,10 @@ final class NotebookModel: NSObject, ObservableObject, PDFPageOverlayViewProvide
 
     /** What a stroke through [points] (x, y, pressure) on [page] will be. */
     func stroke(_ points: [Float], on page: String) -> NotebookStroke {
+        // The fading pen: a laser pointer's red line (its white core is drawn over it, see laserCore).
+        if tool == .fading {
+            return NotebookStroke(id: UUID().uuidString.lowercased(), page: page, tool: "fading", color: 0xffe53935, width: 3.2, points: points, outline: [outlineOf(points, width: 3.2, pen: false)], ink: nil, transform: nil)
+        }
         let pen = tool != .highlighter
         let width: Float = pen ? 0.6 : 9
         return NotebookStroke(id: UUID().uuidString.lowercased(), page: page, tool: pen ? "pen" : "highlighter", color: palette[color % palette.count], width: width, points: points, outline: [outlineOf(points, width: width, pen: pen)], ink: nil, transform: nil)
@@ -371,6 +375,11 @@ final class NotebookModel: NSObject, ObservableObject, PDFPageOverlayViewProvide
     private(set) var fading: [String: [NotebookStroke]] = [:]
     private(set) var fadingAlpha: CGFloat = 1
     private var fadeWait: Task<Void, Never>?
+
+    /** A laser stroke's white core. */
+    func laserCore(_ s: NotebookStroke) -> NotebookStroke {
+        NotebookStroke(id: s.id + "-core", page: s.page, tool: "fading", color: 0xffffffff, width: 1.1, points: s.points, outline: [outlineOf(s.points, width: 1.1, pen: false)], ink: nil, transform: nil)
+    }
 
     /** Writing with the fading pen again: what's there stays (shown again if fading), the wait starts over. */
     func keepFading() {
@@ -460,11 +469,15 @@ final class PageInk: NSView {
         if let fading = model.fading[id], !fading.isEmpty {
             ctx.setAlpha(model.fadingAlpha)
             ctx.beginTransparencyLayer(auxiliaryInfo: nil)
-            for s in fading { draw(s, in: ctx) }
+            for s in fading { draw(s, in: ctx); draw(model.laserCore(s), in: ctx) }
             ctx.endTransparencyLayer()
             ctx.setAlpha(1)
         }
-        if let drawing { draw(model.stroke(drawing, on: id), in: ctx) }
+        if let drawing {
+            let s = model.stroke(drawing, on: id)
+            draw(s, in: ctx)
+            if model.tool == .fading { draw(model.laserCore(s), in: ctx) }
+        }
         ctx.restoreGState()
     }
 
