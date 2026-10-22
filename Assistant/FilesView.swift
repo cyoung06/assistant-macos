@@ -447,6 +447,7 @@ struct FilePreview: View {
             Divider()
             if let a = annotation, a.copy == entry.path, a.sourceChanged { updated(a) }
             content.frame(maxWidth: .infinity, maxHeight: .infinity)
+            LinkedFrom(path: entry.path)
         }
         .onDrag { DriveStore.provider(entry) }
         .task(id: entry) { await load() }
@@ -642,5 +643,35 @@ private struct QuickLookPreview: NSViewRepresentable {
 
     func updateNSView(_ view: QLPreviewView, context: Context) {
         if (view.previewItem as? NSURL) as URL? != url { view.previewItem = url as NSURL }
+    }
+}
+
+/** The notes (and tasks, events) linking to the drive file at [path], under it; nothing if none. */
+struct LinkedFrom: View {
+    let path: String
+    @State private var refs: [RefItem] = []
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        if !refs.isEmpty {
+            VStack(spacing: 0) {
+                Divider()
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        Text("Linked from").font(.caption).foregroundStyle(.secondary)
+                        ForEach(refs, id: \.url) { r in
+                            Button(r.title) {
+                                if let m = r.url.firstMatch(of: /\/files\/([^?#]+)$/) {
+                                    NotificationCenter.default.post(name: .driveReveal, object: "Projects/" + m.output.1.split(separator: "/").map { String($0).removingPercentEncoding ?? String($0) }.joined(separator: "/"))
+                                } else if let u = URL(string: r.url) { openURL(u) }
+                            }
+                            .buttonStyle(.link).font(.caption)
+                        }
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                }
+            }
+        }
+        Color.clear.frame(height: 0).task(id: path) { refs = (try? await AppModel.shared.api.backlinks(AppModel.shared.api.filePage(path))) ?? [] }
     }
 }

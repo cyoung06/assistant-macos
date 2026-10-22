@@ -100,6 +100,13 @@ struct ContentView: View {
         if let m = url.firstMatch(of: /[\/#]task\/([0-9a-f-]{36})/) { selected = String(m.output.1); return true }
         if let m = url.firstMatch(of: /[\/#]tasks\/project\/([0-9a-f-]{36})/) { destination = .project(String(m.output.1)); return true }
         if let m = url.firstMatch(of: /[\/#]tasks\/initiative\/([0-9a-f-]{36})/) { destination = .initiative(String(m.output.1)); return true }
+        // A drive note or file: shown in Files.
+        if let m = url.firstMatch(of: /^(?:https?:\/\/[^\/]+)?\/files\/([^?#]+)$/) {
+            let path = "Projects/" + m.output.1.split(separator: "/").map { String($0).removingPercentEncoding ?? String($0) }.joined(separator: "/")
+            destination = .files
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { NotificationCenter.default.post(name: .driveReveal, object: path) }
+            return true
+        }
         return false
     }
 }

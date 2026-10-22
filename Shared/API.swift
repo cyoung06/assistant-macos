@@ -86,6 +86,12 @@ final class API: @unchecked Sendable {
     }
 
     func search(_ q: String) async throws -> [RefItem] { try await client.search(.init(query: .init(q: q, limit: 10))).ok.body.json }
+    /** What links to [url]: tasks, events, and notes in the drive. */
+    func backlinks(_ url: String) async throws -> [RefItem] { try await client.backlinks(.init(query: .init(url: url))).ok.body.json }
+    /** A drive file's page in the app (what links to it are written as, matched whatever the host). */
+    func filePage(_ path: String) -> String {
+        base.appending(path: "files").absoluteString + "/" + path.replacingOccurrences(of: "Projects/", with: "", options: .anchored).split(separator: "/").map { String($0).addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))) ?? String($0) }.joined(separator: "/")
+    }
     func resolve(_ url: String) async throws -> RefItem { try await client.resolve(.init(query: .init(url: url))).ok.body.json }
 
     // ---- Triage ---------------------------------------------------------------------

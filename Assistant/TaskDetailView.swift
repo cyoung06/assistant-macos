@@ -13,6 +13,10 @@ struct TaskDetailView: View {
     @State private var newSub = ""
     @State private var confirmDelete = false
 
+    /** What links to this task: other tasks, events, notes. */
+    @State private var backlinks: [RefItem] = []
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
         if let t = model.data.tasks.first(where: { $0.id == id }) {
             ScrollView {
@@ -34,6 +38,16 @@ struct TaskDetailView: View {
                             Button("\(r.kind.rawValue.replacingOccurrences(of: "_", with: " ")): #\(r.task.number) \(plainText(r.task.title))") { select(r.task.id) }.buttonStyle(.link)
                         }
                     }
+                    if !backlinks.isEmpty {
+                        Divider()
+                        Text("Linked from").font(.headline)
+                        ForEach(backlinks, id: \.url) { r in
+                            Button { if let u = URL(string: r.url) { openURL(u) } } label: {
+                                Label(r.title, systemImage: r.kind == .note ? "doc.text" : r.kind == .event ? "calendar" : r.kind == .task ? "checkmark.circle" : "link")
+                            }
+                            .buttonStyle(.link)
+                        }
+                    }
                     Divider()
                     HStack {
                         Spacer()
@@ -42,6 +56,7 @@ struct TaskDetailView: View {
                 }
                 .padding(16)
             }
+            .task(id: id) { backlinks = (try? await model.api.backlinks(model.api.base.appending(path: "task/\(id)").absoluteString)) ?? [] }
             .confirmationDialog(t.subtasks > 0 ? "Delete with \(t.subtasks) sub-tasks?" : "Delete this task?", isPresented: $confirmDelete) {
                 Button("Delete", role: .destructive) { select(nil); Task { await model.delete(t) } }
             }

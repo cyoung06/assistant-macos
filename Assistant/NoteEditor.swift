@@ -228,7 +228,65 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate, NSTextSt
 
     func textDidChange(_ notification: Notification) {
         restyle(structure: true)
-        if !applying { offerBlocks() }
+        if !applying { offerBlocks(); offerLinks() }
+    }
+
+    // ---- "[[": links to anything, found as it's typed ----
+
+    /** What "[[" found for what's typed after it, and the query it was for. */
+    private var linkRefs: [RefItem] = []
+    private var linkQuery: String?
+    private var linkSearch: Task<Void, Never>?
+
+    /** "[[" and what's typed after it on this line, if the cursor's right after them. */
+    func linkRange() -> NSRange? {
+        let text = storage.string as NSString
+        let cursor = textView.selectedRange().location
+        guard textView.selectedRange().length == 0, cursor > 1 else { return nil }
+        let line = text.lineRange(for: NSRange(location: cursor - 1, length: 0))
+        let before = text.substring(with: NSRange(location: line.location, length: cursor - line.location))
+        guard let m = before.firstMatch(of: /\[\[([^\]\n]*)$/) else { return nil }
+        let typed = m.output.1.utf16.count
+        return NSRange(location: cursor - typed - 2, length: typed + 2)
+    }
+
+    /** "[[" being typed: what matches is looked up (a moment after typing stops) and offered. */
+    private func offerLinks() {
+        guard editing, let range = linkRange() else { linkSearch?.cancel(); linkQuery = nil; return }
+        let query = String((storage.string as NSString).substring(with: range).dropFirst(2))
+        guard query != linkQuery else { return }
+        linkSearch?.cancel()
+        linkSearch = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled, let refs = try? await AppModel.shared.api.search(query) else { return }
+            guard let self, let now = self.linkRange(), String((self.storage.string as NSString).substring(with: now).dropFirst(2)) == query else { return }
+            self.linkRefs = refs
+            self.linkQuery = query
+            if !refs.isEmpty { self.textView.complete(nil) }
+        }
+    }
+
+    /** How a found thing is listed: its title, and what it is (unique, so the choice is known). */
+    private func linkLabel(_ r: RefItem, _ i: Int) -> String {
+        let what = [r.kind.rawValue.replacingOccurrences(of: "_", with: " "), r.context].compactMap { $0 }.joined(separator: " · ")
+        return "\(r.title) — \(what)" + String(repeating: "\u{200B}", count: i)
+    }
+
+    /** A found thing chosen: a Markdown link to it in place of "[[…" (and the "]]" after, if typed). */
+    func insertLink(_ label: String) {
+        guard let range = linkRange(), let i = linkRefs.indices.first(where: { linkLabel(linkRefs[$0], $0) == label }) else { return }
+        let r = linkRefs[i]
+        // A drive note or file: relative to this note, as notes link files.
+        var href = r.url
+        if let path, let m = r.url.firstMatch(of: /^(?:https?:\/\/[^\/]+)?\/files\/([^?#]+)$/) {
+            let drive = "Projects/" + m.output.1.split(separator: "/").map { String($0).removingPercentEncoding ?? String($0) }.joined(separator: "/")
+            href = relativeLink(folder: driveParent(path), path: drive)
+        }
+        let title = r.title.replacingOccurrences(of: "[", with: "\\[").replacingOccurrences(of: "]", with: "\\]")
+        let text = "[\(title)](\(href))"
+        let after = (storage.string as NSString).length >= range.upperBound + 2 && (storage.string as NSString).substring(with: NSRange(location: range.upperBound, length: 2)) == "]]"
+        textView.insertText(text, replacementRange: NSRange(location: range.location, length: range.length + (after ? 2 : 0)))
+        linkQuery = nil
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
@@ -255,6 +313,7 @@ final class NoteEditor: NSObject, ObservableObject, NSTextViewDelegate, NSTextSt
     }
 
     func textView(_ textView: NSTextView, completions words: [String], forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>?) -> [String] {
+        if linkRange() != nil { return linkRefs.enumerated().map { linkLabel($1, $0) } }
         guard let range = slashRange() else { return [] }
         let query = (storage.string as NSString).substring(with: range).dropFirst().trimmingCharacters(in: .whitespaces).lowercased()
         return slashItems().filter { item in query.isEmpty || "\(item.label) \(item.keywords)".lowercased().split(separator: " ").contains { $0.hasPrefix(query) } }.map(\.label)
@@ -407,13 +466,13 @@ final class NoteTextView: NSTextView {
 
     /** The "/" list replaces what's typed after "/" (not a word) with the chosen block. */
     override var rangeForUserCompletion: NSRange {
-        MainActor.assumeIsolated { editor?.slashRange() } ?? super.rangeForUserCompletion
+        MainActor.assumeIsolated { editor?.linkRange() ?? editor?.slashRange() } ?? super.rangeForUserCompletion
     }
 
     override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange, movement: Int, isFinal flag: Bool) {
         // Only the final choice goes in (not each one passed over).
         guard flag, movement != NSCancelTextMovement else { return }
-        MainActor.assumeIsolated { editor?.insertBlock(word) }
+        MainActor.assumeIsolated { if editor?.linkRange() != nil { editor?.insertLink(word) } else { editor?.insertBlock(word) } }
     }
 
     override func paste(_ sender: Any?) {
@@ -504,6 +563,7 @@ struct NoteView: View {
             .padding(10)
             Divider()
             NoteTextHost(editor: editor).frame(maxWidth: .infinity, maxHeight: .infinity)
+            LinkedFrom(path: path)
         }
         .task(id: path) {
             store.opened(path)
