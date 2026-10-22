@@ -77,6 +77,7 @@
 		E3E30A52CF0A457957CDF189 /* MailFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BC6777FEBE104BF6927EF4 /* MailFile.swift */; };
 		E90924A401C7D0C45D93A47B /* SplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E39213900A45F2DF0041D1B9 /* SplitView.swift */; };
 		EAC435AB7262823727463732 /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA78FB333562EB6EDBDC451C /* CaptureView.swift */; };
+		F132ACE8B866700D9ED499E1 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D2D1558234B8865B7A01D4 /* TodayView.swift */; };
 		F20AAB693376F89ABD13E911 /* Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF9813F4655E59F5FA7A519F /* Tasks.swift */; };
 		FBE5249ABA34837DB5971E8F /* InitiativesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92310E2B3434EB97057F997D /* InitiativesView.swift */; };
 		FC45738CCB0DF4B57A414E8A /* AssistantAPI in Frameworks */ = {isa = PBXBuildFile; productRef = D9C297F47B02D57F587E61AB /* AssistantAPI */; };
@@ -135,6 +136,7 @@
 		252657F076C22485CC70395F /* NotebookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookView.swift; sourceTree = "<group>"; };
 		4B111B43286105888C95E27A /* LiveConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveConnection.swift; sourceTree = "<group>"; };
 		4C8346665AE5364B29483C21 /* NotePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePreview.swift; sourceTree = "<group>"; };
+		51D2D1558234B8865B7A01D4 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
 		53058ED33125BBC098EFAC5B /* EventEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEditor.swift; sourceTree = "<group>"; };
 		5729CFAE9BD9883BD1B3EF82 /* DriveProvider.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DriveProvider.entitlements; sourceTree = "<group>"; };
 		576ED3440CE0DE6BAB9FA2E6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -293,6 +295,7 @@
 				576ED3440CE0DE6BAB9FA2E6 /* SettingsView.swift */,
 				E39213900A45F2DF0041D1B9 /* SplitView.swift */,
 				59D09BDF66A0DB53A2E52B9B /* TaskDetailView.swift */,
+				51D2D1558234B8865B7A01D4 /* TodayView.swift */,
 				080FB3FD0DAD23681090B016 /* TrashView.swift */,
 				6B39F65AFF441FF2D45F7126 /* TriageOutbox.swift */,
 				FD24FABEDF7DAAB63817C2C1 /* TriageView.swift */,
@@ -573,6 +576,7 @@
 				E90924A401C7D0C45D93A47B /* SplitView.swift in Sources */,
 				A368B955C8B40A3AAF03A45C /* TaskDetailView.swift in Sources */,
 				FE0B45DAA538C047C730D190 /* Tasks.swift in Sources */,
+				F132ACE8B866700D9ED499E1 /* TodayView.swift in Sources */,
 				92CE8FCA5BDBDD66D648A0D1 /* TrashView.swift in Sources */,
 				13697DC683B3C5F3291041A1 /* TriageOutbox.swift in Sources */,
 				077329F349768ACD92DFB12F /* TriageView.swift in Sources */,

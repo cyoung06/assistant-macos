@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum Destination: Hashable {
-    case triage, active, backlog, all, project(String), calendar, initiatives, initiative(String), files
+    case today, triage, active, backlog, all, project(String), calendar, initiatives, initiative(String), files
 }
 
 /** Sidebar (task views, projects, calendar) and the selected list, with the task in an inspector. */
@@ -16,6 +16,7 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: $destination) {
+                Label("Today", systemImage: "sun.max").tag(Destination.today)
                 Label("Triage", systemImage: "tray.and.arrow.down").badge(model.triageCount).tag(Destination.triage)
                 Section("Tasks") {
                     Label("Active", systemImage: "circle.dotted.circle").tag(Destination.active)
@@ -44,6 +45,7 @@ struct ContentView: View {
         } detail: {
             Group {
                 switch destination ?? .active {
+                case .today: TodayView(selected: $selected) { destination = $0 }
                 case .calendar: CalendarView(selected: $selected)
                 case .triage: TriageView(selectedTask: $selected)
                 case .initiatives: InitiativesView { destination = .initiative($0) }
@@ -164,6 +166,7 @@ struct TaskListView: View {
         case let .project(id): model.project(id)?.name ?? "Project"
         case .calendar: "Calendar"
         case .triage: "Triage"
+        case .today: "Today"
         case .initiatives, .initiative: "Initiatives"
         case .files: "Files"
         }
@@ -175,7 +178,7 @@ struct TaskListView: View {
             let inView: Bool = switch destination {
             case .active: t.status == .todo || t.status == .in_progress
             case .backlog: t.status == .backlog
-            case .all, .calendar, .triage, .initiatives, .initiative, .files: true
+            case .all, .calendar, .triage, .initiatives, .initiative, .files, .today: true
             case let .project(id): t.projectId == id
             }
             return inView && (q.isEmpty || plainText(t.title).lowercased().contains(q) || "#\(t.number)" == q)

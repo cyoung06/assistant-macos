@@ -13,6 +13,7 @@ typealias TriageInput = Components.Schemas.TriageInputResponse
 typealias TriageItem = Components.Schemas.TriageItemResponse
 typealias Due = Components.Schemas.DueDto
 typealias EventItem = Components.Schemas.EventOccurrence
+typealias TodayInfo = Components.Schemas.Today
 typealias RefItem = Components.Schemas.Ref
 typealias Proposal = Components.Schemas.Proposal
 typealias TaskStatus = Components.Schemas.TaskResponse.statusPayload
@@ -67,6 +68,11 @@ final class API: @unchecked Sendable {
     }
 
     func delete(_ id: String) async throws { _ = try await client.delete(.init(path: .init(id: id))) }
+
+    /** The day at a glance: the next class (room, newest files), today's events, tasks due soon, Triage's count. */
+    func today() async throws -> TodayInfo {
+        try await client.today().ok.body.json
+    }
 
     func events(from: String, to: String) async throws -> [EventItem] {
         try await client.occurrences(.init(query: .init(from: from, to: to))).ok.body.json

@@ -22,6 +22,8 @@ struct EventEditor: View {
     @State private var calendarName = ""
     @State private var title = ""
     @State private var notes = ""
+    /** Where it is (a lecture's room). */
+    @State private var location = ""
     @State private var allDay = false
     @State private var day = Date()
     @State private var lastDay = Date()
@@ -94,6 +96,7 @@ struct EventEditor: View {
                 Toggle("Repeats", isOn: $repeats)
                 if repeats { repeatForm.padding(.leading, 18) }
             }
+            TextField("Room or place", text: $location)
             Text("Notes").font(.caption).foregroundStyle(.secondary)
             TextEditor(text: $notes).font(.body).frame(minHeight: 60, maxHeight: 120).overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
         }
@@ -171,6 +174,7 @@ struct EventEditor: View {
                 let e = try await model.api.event(id)
                 title = e["title"] as? String ?? ""
                 notes = e["notes"] as? String ?? ""
+                location = e["location"] as? String ?? ""
                 fixed = e["fixed"] as? Bool ?? false
                 calendarName = e["calendarName"] as? String ?? ""
                 projectId = e["projectId"] as? String ?? ""
@@ -202,7 +206,8 @@ struct EventEditor: View {
         busy = true
         error = nil
         defer { busy = false }
-        var body: [String: Any] = ["title": title.trimmingCharacters(in: .whitespaces), "notes": notes, "projectId": projectId.isEmpty ? NSNull() : projectId]
+        let room = location.trimmingCharacters(in: .whitespaces)
+        var body: [String: Any] = ["title": title.trimmingCharacters(in: .whitespaces), "notes": notes, "location": room.isEmpty ? NSNull() : room, "projectId": projectId.isEmpty ? NSNull() : projectId]
         let d = dayString(day)
         if allDay {
             body["startDate"] = d
