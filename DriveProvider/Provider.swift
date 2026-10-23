@@ -73,7 +73,7 @@ final class Provider: NSObject, NSFileProviderReplicatedExtension {
                 guard let parent = store.path(for: itemTemplate.parentItemIdentifier) else { throw NSFileProviderError(.noSuchItem) }
                 if driveReadOnly(parent) { throw NSFileProviderError(.cannotSynchronize) }
                 let folder = itemTemplate.contentType?.conforms(to: .folder) == true
-                let name = itemTemplate.filename.replacingOccurrences(of: "/", with: " ")
+                let name = driveName(itemTemplate.filename)
                 var path = parent + name + (folder ? "/" : "")
                 // Finder re-importing what's already there: the same item, not a second one.
                 if options.contains(.mayAlreadyExist), let there = try? await relisted(path) {
@@ -105,7 +105,7 @@ final class Provider: NSObject, NSFileProviderReplicatedExtension {
                 // Renamed or moved.
                 if changedFields.contains(.filename) || changedFields.contains(.parentItemIdentifier) {
                     guard let parent = store.path(for: item.parentItemIdentifier) else { throw NSFileProviderError(.noSuchItem) }
-                    let to = parent + item.filename.replacingOccurrences(of: "/", with: " ") + (folder ? "/" : "")
+                    let to = parent + driveName(item.filename) + (folder ? "/" : "")
                     if to != path {
                         try await api.driveMove(path, to)
                         store.moved(path, to: to)
@@ -174,4 +174,13 @@ final class Provider: NSObject, NSFileProviderReplicatedExtension {
         if error is URLError { return NSFileProviderError(.serverUnreachable) }
         return error
     }
+}
+
+/**
+ * A name from Finder as the drive keeps it: no "/" (a folder's separator there), and composed
+ * (NFC), as every other app writes it; Finder hands over Korean decomposed, which looks the same
+ * but isn't found by name (mentions, links, the palette).
+ */
+private func driveName(_ name: String) -> String {
+    name.replacingOccurrences(of: "/", with: " ").precomposedStringWithCanonicalMapping
 }
